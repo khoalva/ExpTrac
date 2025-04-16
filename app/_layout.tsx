@@ -1,6 +1,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Platform } from "react-native";
@@ -69,51 +70,54 @@ function RootLayoutNav() {
     }, [isAuthenticated, isOnboardingCompleted, segments]);
 
     return (
-        <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-                name="onboarding/index"
-                options={{ headerShown: false }}
-            />
-            <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-            <Stack.Screen
-                name="transaction/new"
-                options={{
-                    presentation: "modal",
-                    title: "New Transaction",
-                    headerStyle: {
-                        backgroundColor: "#F8F6FB",
-                    },
-                }}
-            />
-            <Stack.Screen
-                name="budget/new"
-                options={{
-                    presentation: "modal",
-                    title: "New Budget",
-                    headerStyle: {
-                        backgroundColor: "#F8F6FB",
-                    },
-                }}
-            />
-            <Stack.Screen
-                name="notifications/index"
-                options={{
-                    title: "Notifications",
-                    headerStyle: {
-                        backgroundColor: "#F8F6FB",
-                    },
-                }}
-            />
-            <Stack.Screen
-                name="profile/index"
-                options={{
-                    title: "Profile",
-                    headerStyle: {
-                        backgroundColor: "#F8F6FB",
-                    },
-                }}
-            />
-        </Stack>
+        <GluestackUIProvider>
+            <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                    name="onboarding/index"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="auth/login"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="transaction/new"
+                    options={{
+                        presentation: "modal",
+                        title: "New Transaction",
+                        headerShown: false,
+                    }}
+                />
+                <Stack.Screen
+                    name="budget/new"
+                    options={{
+                        presentation: "modal",
+                        title: "New Budget",
+                        headerStyle: {
+                            backgroundColor: "#F8F6FB",
+                        },
+                    }}
+                />
+                <Stack.Screen
+                    name="notifications/index"
+                    options={{
+                        title: "Notifications",
+                        headerStyle: {
+                            backgroundColor: "#F8F6FB",
+                        },
+                    }}
+                />
+                <Stack.Screen
+                    name="profile/index"
+                    options={{
+                        title: "Profile",
+                        headerStyle: {
+                            backgroundColor: "#F8F6FB",
+                        },
+                    }}
+                />
+            </Stack>
+        </GluestackUIProvider>
     );
 }

@@ -3,29 +3,29 @@ export type User = {
     name: string;
     email: string;
     avatar?: string;
-  };
-  
-  export type Wallet = {
+};
+
+export type Wallet = {
     id: string;
     name: string;
     balance: number;
     currency: string;
     color?: string;
     icon?: string;
-  };
-  
-  export type Category = {
+};
+
+export type Category = {
     id: string;
     name: string;
     icon: string;
     color: string;
-    type: 'income' | 'expense';
-  };
-  
-  export type Transaction = {
+    type: "income" | "expense";
+};
+
+export type Transaction = {
     id: string;
     amount: number;
-    type: 'income' | 'expense';
+    type: "income" | "expense";
     category: string;
     categoryId: string;
     date: Date;
@@ -34,11 +34,11 @@ export type User = {
     note?: string;
     image?: string;
     isRecurring?: boolean;
-    recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    recurringFrequency?: "daily" | "weekly" | "monthly" | "yearly";
     nextBillDate?: Date;
-  };
-  
-  export type Budget = {
+};
+
+export type Budget = {
     id: string;
     name: string;
     amount: number;
@@ -48,36 +48,38 @@ export type User = {
     walletId?: string;
     startDate: Date;
     endDate: Date;
-    period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    period: "daily" | "weekly" | "monthly" | "yearly";
     currency: string;
-  };
-  
-  export type Currency = {
+};
+
+export type Currency = {
     code: string;
     symbol: string;
     name: string;
-  };
-  
-  export type Notification = {
+};
+
+export type Notification = {
     id: string;
     title: string;
     message: string;
-    type: 'reminder' | 'alert' | 'success';
+    type: "reminder" | "alert" | "success";
     read: boolean;
     date: Date;
     relatedId?: string;
-    relatedType?: 'transaction' | 'budget' | 'goal';
-  };
-  
-  export type DateRange = {
+    relatedType?: "transaction" | "budget" | "goal";
+};
+
+export type DateRange = {
     startDate: Date;
     endDate: Date;
-  };
-  
-  export type ChartData = {
+};
+
+export type ChartData = {
     labels: string[];
     datasets: {
-      data: number[];
-      colors?: string[];
+        data: number[];
+        colors?: string[];
     }[];
-  };
+};
+
+export type TransactionType = "income" | "expense";

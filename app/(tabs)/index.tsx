@@ -154,16 +154,15 @@ export default function HomeScreen() {
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     pagingEnabled
-                    className="px-5 w-full"
+                    className="px-5 flex "
                     onMomentumScrollEnd={(event) => {
                         const slideIndex = Math.round(
                             event.nativeEvent.contentOffset.x /
                                 event.nativeEvent.layoutMeasurement.width
                         );
-                        console.log("Slide Index:", slideIndex);
                         setCurrentSlide(slideIndex);
                     }}>
-                    <View className="w-full flex flex-row justify-between gap-4 items-center">
+                    <View className="flex-1 flex flex-row justify-between gap-4 items-center">
                         {carouselData.map((item, index) => (
                             <View
                                 key={item.id}
