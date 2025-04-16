@@ -80,6 +80,36 @@ export default function TabLayout() {
                     headerShown: false,
                 }}
             />
+
+            {/* Hide wallet/* and subscription/* files from tabs */}
+            <Tabs.Screen
+                name="wallet/index"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="wallet/new"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="subscription/index"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="subscription/new"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

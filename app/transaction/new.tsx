@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import { transactionService } from "@/service/TransactionService";
+import { db } from "@/service/database";
 // would later use zustand to store the latest screen before this screen, to navigate back to when back button is pressed
 type TransactionScreenProps = {
     callBackScreen: string;
@@ -91,26 +93,55 @@ export default function NewTransactionScreen({
 
     const transactionType = watch("type");
 
-    const onSubmit = (data: z.infer<typeof TransactionSchema>) => {
-        console.log("Form data:", data);
-        // Create transaction object
-        const transaction = {
-            amount: data.amount,
-            type: data.type,
-            category: data.category,
-            categoryId: "1", // This would be selected from a list
-            date: new Date(data.date),
-            walletId: "1", // This would be selected from a list
-            wallet: data.wallet,
-            note: data.note,
-            isRecurring: data.repeat !== "None",
-        };
+    const onSubmit = async (data: z.infer<typeof TransactionSchema>) => {
+        try {
+            console.log("Form data:", data);
 
-        // Add transaction
-        addTransaction(transaction);
+            // Initialize database if not already
+            await db.initDatabase();
 
-        // Show success modal
-        setShowSuccessModal(true);
+            // Create transaction object for database that matches the transaction_log table schema
+            const transaction = {
+                type: data.type,
+                amount: data.amount,
+                currency: data.currency || "vnd",
+                date: new Date(data.date).toISOString(),
+                wallet: data.wallet,
+                category: data.category,
+                repeat: data.repeat || "None",
+                note: data.note || "",
+                picture: data.picture || "",
+            };
+
+            // Save transaction to database
+            const transactionId = await transactionService.createTransaction(
+                transaction
+            );
+            console.log(`Transaction created with ID: ${transactionId}`);
+
+            // Create transaction object for store (might have a different shape)
+            const storeTransaction = {
+                id: transactionId.toString(),
+                amount: data.amount,
+                type: data.type,
+                category: data.category,
+                date: new Date(data.date),
+                walletId: "1", // Legacy field needed by store
+                wallet: data.wallet,
+                categoryId: "1", // Legacy field needed by store
+                isRecurring: data.repeat !== "None",
+                note: data.note || "",
+            };
+
+            // Add transaction to store for UI updates
+            addTransaction(storeTransaction);
+
+            // Show success modal
+            setShowSuccessModal(true);
+        } catch (error) {
+            console.error("Error creating transaction:", error);
+            // Handle error (show error message to user)
+        }
     };
 
     const handleSuccessModalClose = () => {

@@ -10,8 +10,6 @@ export type Wallet = {
     name: string;
     balance: number;
     currency: string;
-    color?: string;
-    icon?: string;
 };
 
 export type Category = {

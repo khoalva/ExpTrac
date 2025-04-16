@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { colors } from "@/constants/Colors";
 import { Transaction } from "@/types";
 import { formatShortDate, formatTransactionAmount } from "@/utils/formatters";
@@ -28,6 +28,30 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     const formattedNextBillDate = nextBillDate
         ? formatShortDate(new Date(nextBillDate))
         : null;
+
+    const handleEdit = () => {
+        if (onEdit) onEdit();
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete Transaction",
+            "Are you sure you want to delete this transaction?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        if (onDelete) onDelete();
+                    },
+                },
+            ]
+        );
+    };
 
     return (
         <TouchableOpacity
@@ -62,17 +86,17 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
                 {showActions && (
                     <View style={styles.actions} className="flex flex-col">
                         <TouchableOpacity
-                            onPress={onEdit}
+                            onPress={onPress}
                             style={styles.actionButton}>
                             <Text style={styles.actionText}>Detail</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={onEdit}
+                            onPress={handleEdit}
                             style={styles.actionButton}>
                             <Text style={styles.actionText}>Edit</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={onDelete}
+                            onPress={handleDelete}
                             style={styles.actionButton}>
                             <Text
                                 style={[styles.actionText, styles.deleteText]}>

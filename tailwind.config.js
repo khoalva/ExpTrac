@@ -3,7 +3,12 @@ import gluestackPlugin from "@gluestack-ui/nativewind-utils/tailwind-plugin";
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: "media",
-    content: ["app/**/*.{tsx,jsx,ts,js}", "components/**/*.{tsx,jsx,ts,js}"],
+    content: [
+        "app/**/*.{tsx,jsx,ts,js}",
+        "components/**/*.{tsx,jsx,ts,js}",
+        "./pages/**/*.{js,ts,jsx,tsx}",
+        "./components/**/*.{js,ts,jsx,tsx}",
+    ],
     presets: [require("nativewind/preset")],
     safelist: [
         {
@@ -14,6 +19,35 @@ module.exports = {
     theme: {
         extend: {
             colors: {
+                primary: "var(--color-primary)",
+                "primary-dark": "var(--color-primary-dark)",
+                "primary-light": "var(--color-primary-light)",
+                secondary: "var(--color-secondary)",
+                background: "var(--color-background)",
+                card: "var(--color-card)",
+                text: "var(--color-text)",
+                "text-secondary": "var(--color-text-secondary)",
+                "text-tertiary": "var(--color-text-tertiary)",
+                success: "var(--color-success)",
+                error: "var(--color-error)",
+                warning: "var(--color-warning)",
+                info: "var(--color-info)",
+                border: "var(--color-border)",
+                // Category colors
+                category: {
+                    food: "var(--color-category-food)",
+                    transport: "var(--color-category-transport)",
+                    shopping: "var(--color-category-shopping)",
+                    entertainment: "var(--color-category-entertainment)",
+                    health: "var(--color-category-health)",
+                    education: "var(--color-category-education)",
+                    housing: "var(--color-category-housing)",
+                    utilities: "var(--color-category-utilities)",
+                    investment: "var(--color-category-investment)",
+                    income: "var(--color-category-income)",
+                    expense: "var(--color-category-expense)",
+                    other: "var(--color-category-other)",
+                },
                 primary: {
                     0: "rgb(var(--color-primary-0)/<alpha-value>)",
                     50: "rgb(var(--color-primary-50)/<alpha-value>)",

@@ -83,7 +83,7 @@ export default function HomeScreen() {
             id: "3",
             title: "My Wallet",
             icon: <Wallet size={32} color="#FF9F40" />,
-            onPress: () => router.push("/wallet"),
+            onPress: () => router.push("/wallet"), // Remove /index - this automatically points to index.tsx
         },
         {
             id: "4",
@@ -96,12 +96,6 @@ export default function HomeScreen() {
             title: "Subscription",
             icon: <FileSpreadsheet size={32} color="#4BC0C0" />,
             onPress: () => router.push("/subscription"),
-        },
-        {
-            id: "6",
-            title: "Saving suggestion",
-            icon: <LightbulbIcon size={32} color="#9966FF" />,
-            onPress: () => router.push("/saving-tips"),
         },
     ];
 

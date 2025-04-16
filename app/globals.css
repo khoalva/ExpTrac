@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    /* Main colors */
+    --color-primary: #5d4275;
+    --color-primary-dark: #3d2952;
+    --color-primary-light: #8a6ba6;
+    --color-secondary: #e6c74c;
+    --color-background: #f8f6fb;
+    --color-card: #ffffff;
+    --color-text: #1a1a1a;
+    --color-text-secondary: #666666;
+    --color-text-tertiary: #999999;
+    --color-success: #4caf50;
+    --color-error: #f44336;
+    --color-warning: #ff9800;
+    --color-info: #2196f3;
+    --color-border: #e0e0e0;
+    --color-shadow: rgba(93, 66, 117, 0.1);
+    --color-overlay: rgba(0, 0, 0, 0.5);
+    --color-gradient-start: #6d4d8c;
+    --color-gradient-end: #4a3163;
+
+    /* Category colors */
+    --color-category-food: #f44336;
+    --color-category-transport: #ff9800;
+    --color-category-shopping: #2196f3;
+    --color-category-entertainment: #9c27b0;
+    --color-category-health: #4caf50;
+    --color-category-education: #3f51b5;
+    --color-category-housing: #795548;
+    --color-category-utilities: #607d8b;
+    --color-category-investment: #ffc107;
+    --color-category-income: #4caf50;
+    --color-category-expense: #f44336;
+    --color-category-other: #9e9e9e;
+}
