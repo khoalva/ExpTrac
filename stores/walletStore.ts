@@ -89,6 +89,8 @@ export const useWalletStore = create<WalletState>()(
                 );
             },
 
+            // temporary function to initialize default wallet
+            // to be removed later
             initializeDefaultWallet: () => {
                 const { wallets } = get();
                 if (wallets.length === 0) {

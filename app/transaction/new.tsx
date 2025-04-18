@@ -211,7 +211,7 @@ export default function NewTransactionScreen({
                                             !isNaN(numValue) ? numValue : 0
                                         );
                                     }}
-                                    keyboardType="numeric"
+                                    keyboardType="number-pad"
                                 />
                             )}
                         />

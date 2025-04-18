@@ -97,7 +97,7 @@ export default function WalletScreen() {
                                     <TouchableOpacity
                                         className="w-fit h-fit bg-none gap-1 flex flex-row items-center justify-start"
                                         onPress={() =>
-                                            router.push("/(tabs)/wallet/index")
+                                            router.push("/(tabs)/wallet")
                                         }>
                                         <Pencil size={12} color={"#FFF"} />
                                         <Text className="text-white">Edit</Text>
@@ -105,7 +105,7 @@ export default function WalletScreen() {
                                     <TouchableOpacity
                                         className="w-fit h-fit bg-none gap-1 flex flex-row items-center justify-start"
                                         onPress={() =>
-                                            router.push("/(tabs)/wallet/index")
+                                            router.push("/(tabs)/wallet/new")
                                         }>
                                         <Trash size={12} color={"red"} />
                                         <Text className="text-red-500">

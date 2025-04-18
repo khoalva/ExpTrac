@@ -110,6 +110,20 @@ export default function TabLayout() {
                     href: null,
                 }}
             />
+            <Tabs.Screen
+                name="category/index"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="category/new"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

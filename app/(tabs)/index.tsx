@@ -97,6 +97,12 @@ export default function HomeScreen() {
             icon: <FileSpreadsheet size={32} color="#4BC0C0" />,
             onPress: () => router.push("/subscription"),
         },
+        {
+            id: "6",
+            title: "Categories",
+            icon: <LightbulbIcon size={32} color="#9966FF" />,
+            onPress: () => router.push("/(tabs)/category"),
+        },
     ];
 
     return (
