@@ -12,81 +12,45 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/constants/Colors";
 import { useUserStore } from "@/stores/userStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 import Avatar from "@/components/ui/Avatar";
 import TransactionItem from "@/components/cards/TransactionItem";
 import { Search, X, ChevronDown } from "lucide-react-native";
 import { db } from "@/service/database";
-import { transactionService } from "@/service/TransactionService";
 
 export default function HistoryScreen() {
     const user = useUserStore((state) => state.user);
     const [searchQuery, setSearchQuery] = useState("");
-    const [transactions, setTransactions] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+
+    // Use transaction store
+    const transactions = useTransactionStore((state) => state.transactions);
+    const loadTransactions = useTransactionStore(
+        (state) => state.loadTransactions
+    );
+    const deleteTransaction = useTransactionStore(
+        (state) => state.deleteTransaction
+    );
+    const isLoading = useTransactionStore((state) => state.isLoading);
+    const error = useTransactionStore((state) => state.error);
 
     useEffect(() => {
+        const initDatabaseAndLoadTransactions = async () => {
+            try {
+                // Initialize database
+                await db.initDatabase();
+
+                // Load transactions with a limit of 50
+                await loadTransactions(50);
+            } catch (err) {
+                console.error(
+                    "Error initializing and loading transactions:",
+                    err
+                );
+            }
+        };
+
         initDatabaseAndLoadTransactions();
-    }, []);
-
-    const initDatabaseAndLoadTransactions = async () => {
-        try {
-            setLoading(true);
-            // Initialize database
-            await db.initDatabase();
-
-            // Load transactions
-            await loadTransactions();
-        } catch (err) {
-            console.error("Error initializing database:", err);
-            setError("Failed to initialize database");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadTransactions = async () => {
-        try {
-            setLoading(true);
-            const dbTransactions =
-                await transactionService.getAllTransactions();
-
-            // Transform database transactions to match the format expected by the UI
-            const formattedTransactions = dbTransactions.map((transaction) => {
-                let nextBillDate = undefined;
-                if (transaction.repeat && transaction.repeat !== "None") {
-                    const nextDateStr =
-                        transactionService.calculateNextBillDate(
-                            transaction.date,
-                            transaction.repeat
-                        );
-                    if (nextDateStr) {
-                        nextBillDate = new Date(nextDateStr);
-                    }
-                }
-
-                return {
-                    id: String(transaction.id),
-                    amount: transaction.amount,
-                    type: transaction.type,
-                    category: transaction.category,
-                    date: new Date(transaction.date),
-                    wallet: transaction.wallet,
-                    note: transaction.note || "",
-                    isRecurring: transaction.repeat !== "None",
-                    nextBillDate: nextBillDate,
-                };
-            });
-
-            setTransactions(formattedTransactions);
-            setError(null);
-        } catch (err) {
-            console.error("Error loading transactions:", err);
-            setError("Failed to load transactions");
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [loadTransactions]);
 
     const handleEditTransaction = (id: string) => {
         // Navigate to edit screen
@@ -95,15 +59,9 @@ export default function HistoryScreen() {
 
     const handleDeleteTransaction = async (id: string) => {
         try {
-            setLoading(true);
-            await transactionService.deleteTransaction(Number(id));
-            // Reload transactions after deletion
-            await loadTransactions();
+            await deleteTransaction(id);
         } catch (err) {
             console.error(`Error deleting transaction ${id}:`, err);
-            setError("Failed to delete transaction");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -116,6 +74,14 @@ export default function HistoryScreen() {
             transaction.note?.toLowerCase().includes(searchLower)
         );
     });
+
+    const handleRefresh = async () => {
+        try {
+            await loadTransactions(50);
+        } catch (err) {
+            console.error("Error refreshing transactions:", err);
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -166,12 +132,24 @@ export default function HistoryScreen() {
 
                     <TouchableOpacity
                         style={styles.refreshButton}
-                        onPress={loadTransactions}>
-                        <Text style={styles.filterText}>Refresh</Text>
+                        onPress={handleRefresh}
+                        disabled={isLoading}>
+                        <Text style={styles.refreshText}>Refresh</Text>
                     </TouchableOpacity>
                 </View>
 
-                {loading ? (
+                {error && (
+                    <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                        <TouchableOpacity
+                            style={styles.retryButton}
+                            onPress={handleRefresh}>
+                            <Text style={styles.retryText}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {isLoading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator
                             size="large"
@@ -181,19 +159,12 @@ export default function HistoryScreen() {
                             Loading transactions...
                         </Text>
                     </View>
-                ) : error ? (
-                    <View style={styles.errorContainer}>
-                        <Text style={styles.errorText}>{error}</Text>
-                        <TouchableOpacity
-                            style={styles.retryButton}
-                            onPress={loadTransactions}>
-                            <Text style={styles.retryText}>Retry</Text>
-                        </TouchableOpacity>
-                    </View>
                 ) : filteredTransactions.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <Text style={styles.emptyText}>
-                            No transactions found
+                            {searchQuery
+                                ? "No transactions matching your search"
+                                : "No transactions found"}
                         </Text>
                     </View>
                 ) : (
@@ -303,6 +274,9 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 8,
     },
+    refreshText: {
+        color: "white",
+    },
     transactionList: {
         flex: 1,
     },
@@ -318,10 +292,11 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     errorContainer: {
-        flex: 1,
+        marginBottom: 16,
+        padding: 12,
+        backgroundColor: "#ffebee",
+        borderRadius: 8,
         alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 40,
     },
     errorText: {
         fontSize: 16,

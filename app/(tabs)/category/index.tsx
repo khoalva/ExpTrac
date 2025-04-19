@@ -1,5 +1,11 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
@@ -8,13 +14,20 @@ import { useCategoryStore } from "@/stores/categoryStore";
 import Avatar from "@/components/ui/Avatar";
 import { Button, ButtonText } from "@/components/ui/button/index";
 import CategoryModalForm from "@/components/modals/form/CategoryModalForm";
+import { db } from "@/service/database";
 
 export default function CategoryScreen() {
     const router = useRouter();
     const user = useUserStore((state) => state.user);
     const categories = useCategoryStore((state) => state.categories);
+    const deleteCategory = useCategoryStore((state) => state.deleteCategory);
+    const isLoading = useCategoryStore((state) => state.isLoading);
+    const error = useCategoryStore((state) => state.error);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<string | null>(null);
+
+    // Load categories when component mounts
 
     const openAddModal = () => {
         setEditingCategory(null);
@@ -31,7 +44,13 @@ export default function CategoryScreen() {
         setEditingCategory(null);
     };
 
-    const deleteCategory = useCategoryStore((state) => state.deleteCategory);
+    const handleDeleteCategory = async (categoryName: string) => {
+        try {
+            await deleteCategory(categoryName);
+        } catch (err) {
+            console.error(`Error deleting category ${categoryName}:`, err);
+        }
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-background">
@@ -52,7 +71,7 @@ export default function CategoryScreen() {
                     </Text>
                 </View>
 
-                <View className="flex flex-row justify-end items-center">
+                <View className="flex flex-row justify-end items-center mt-3">
                     <View className="flex flex-row justify-between gap-2 items-center">
                         <Text>Add New Category</Text>
                         <Button
@@ -66,33 +85,61 @@ export default function CategoryScreen() {
                     </View>
                 </View>
 
-                {categories.map((category) => (
-                    <View
-                        key={category.name}
-                        className="flex flex-row  justify-between items-center mt-2 gap-2">
-                        <View className="p-4 bg-slate-300 rounded-xl flex items-center justify-center flex-1">
-                            <Text>{category.name}</Text>
-                        </View>
-                        <View className="flex flex-col">
-                            <Button
-                                className="p-1 border-none bg-transparent"
-                                size="sm"
-                                onPress={() => openEditModal(category.name)}>
-                                <ButtonText className="text-black">
-                                    Edit
-                                </ButtonText>
-                            </Button>
-                            <Button
-                                className="p-1 border-none bg-transparent"
-                                size="sm"
-                                onPress={() => deleteCategory(category.name)}>
-                                <ButtonText className="text-red-500">
-                                    Delete
-                                </ButtonText>
-                            </Button>
-                        </View>
+                {error && (
+                    <View className="mt-2 p-2 bg-red-100 rounded-lg">
+                        <Text className="text-red-500">{error}</Text>
                     </View>
-                ))}
+                )}
+
+                {isLoading ? (
+                    <View className="flex items-center justify-center py-8">
+                        <ActivityIndicator
+                            size="large"
+                            color={colors.primary}
+                        />
+                        <Text className="mt-2 text-textSecondary">
+                            Loading categories...
+                        </Text>
+                    </View>
+                ) : categories.length === 0 ? (
+                    <View className="mt-4 p-4 bg-slate-100 rounded-xl">
+                        <Text className="text-center text-textSecondary">
+                            No categories found. Add a category to get started.
+                        </Text>
+                    </View>
+                ) : (
+                    categories.map((category) => (
+                        <View
+                            key={category.name}
+                            className="flex flex-row justify-between items-center mt-2 gap-2">
+                            <View className="p-4 bg-slate-300 rounded-xl flex items-center justify-center flex-1">
+                                <Text>{category.name}</Text>
+                            </View>
+                            <View className="flex flex-col">
+                                <Button
+                                    className="p-1 border-none bg-transparent"
+                                    size="sm"
+                                    onPress={() =>
+                                        openEditModal(category.name)
+                                    }>
+                                    <ButtonText className="text-black">
+                                        Edit
+                                    </ButtonText>
+                                </Button>
+                                <Button
+                                    className="p-1 border-none bg-transparent"
+                                    size="sm"
+                                    onPress={() =>
+                                        handleDeleteCategory(category.name)
+                                    }>
+                                    <ButtonText className="text-red-500">
+                                        Delete
+                                    </ButtonText>
+                                </Button>
+                            </View>
+                        </View>
+                    ))
+                )}
             </ScrollView>
 
             <CategoryModalForm

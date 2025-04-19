@@ -183,29 +183,6 @@ class TransactionService {
         }
     }
 
-    public async getCategories(): Promise<string[]> {
-        try {
-            const results = await db.executeQuery<{ name: string }>(
-                "SELECT name FROM category ORDER BY name"
-            );
-            return results.map((item) => item.name);
-        } catch (error) {
-            console.error("Error fetching categories:", error);
-            throw error;
-        }
-    }
-
-    public async getWallets(): Promise<{ name: string; currency: string }[]> {
-        try {
-            return await db.executeQuery<{ name: string; currency: string }>(
-                "SELECT name, currency FROM wallet ORDER BY name"
-            );
-        } catch (error) {
-            console.error("Error fetching wallets:", error);
-            throw error;
-        }
-    }
-
     // Helper method to calculate next bill date from repeat pattern
     public calculateNextBillDate(date: string, repeat: string): string | null {
         if (repeat === "None") return null;

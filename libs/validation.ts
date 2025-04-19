@@ -16,13 +16,29 @@ export const TransactionSchema = z.object({
     type: z.enum(["expense", "income"]),
     amount: z.number().positive(),
     currency: z.enum(["vnd", "usd"]),
-    date: z.string(),
+    date: z.union([
+        z.string(),
+        z.date().transform((date) => date.toISOString()),
+    ]),
     wallet: z.string(),
     category: z.string(),
-    repeat: z.string(),
+    repeat: z.string().default("None"),
     note: z.string().optional(),
     picture: z.string().optional(),
 });
+
+// Define TransactionFormValues interface based on the schema
+export interface TransactionFormValues {
+    type: "expense" | "income";
+    amount: number;
+    currency: "vnd" | "usd";
+    date: Date;
+    wallet: string;
+    category: string;
+    repeat?: string;
+    note?: string;
+    picture?: string;
+}
 
 // budget:
 // name @unique @primary

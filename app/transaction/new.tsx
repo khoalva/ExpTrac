@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     ScrollView,
     TouchableOpacity,
     TextInput,
+    ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -39,6 +40,8 @@ import {
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { transactionService } from "@/service/TransactionService";
+import { walletService } from "@/service/WalletService";
+import { categoryService } from "@/service/CategoryService";
 import { db } from "@/service/database";
 // would later use zustand to store the latest screen before this screen, to navigate back to when back button is pressed
 type TransactionScreenProps = {
@@ -69,6 +72,45 @@ export default function NewTransactionScreen({
     const user = useUserStore((state) => state.user);
     const addTransaction = useTransactionStore((state) => state.addTransaction);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [wallets, setWallets] = useState<
+        { name: string; currency: string }[]
+    >([]);
+    const [categories, setCategories] = useState<{ name: string }[]>([]);
+    const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+
+    // Load wallets and categories when component mounts
+    useEffect(() => {
+        const loadOptions = async () => {
+            try {
+                setIsLoadingOptions(true);
+
+                // Initialize database
+                await db.initDatabase();
+
+                // Load wallets and categories
+                const dbWallets = await walletService.getAllWallets();
+                const dbCategories = await categoryService.getAllCategories();
+
+                setWallets(
+                    dbWallets.map((wallet) => ({
+                        name: wallet.name,
+                        currency: wallet.currency,
+                    }))
+                );
+
+                setCategories(dbCategories);
+            } catch (error) {
+                console.error("Error loading options:", error);
+                setError("Failed to load wallets and categories");
+            } finally {
+                setIsLoadingOptions(false);
+            }
+        };
+
+        loadOptions();
+    }, []);
 
     const {
         control,
@@ -77,7 +119,7 @@ export default function NewTransactionScreen({
         watch,
         formState: { errors },
     } = useForm<z.infer<typeof TransactionSchema>>({
-        resolver: zodResolver(TransactionSchema),
+        resolver: zodResolver(TransactionSchema) as any,
         defaultValues: {
             type: "expense",
             amount: 0,
@@ -85,20 +127,34 @@ export default function NewTransactionScreen({
             date: new Date().toISOString(),
             wallet: "",
             category: "",
-            repeat: "None",
+            repeat: "",
             note: "",
             picture: "",
         },
     });
 
     const transactionType = watch("type");
+    const selectedWallet = watch("wallet");
+
+    // Update currency when wallet changes
+    useEffect(() => {
+        if (selectedWallet) {
+            const wallet = wallets.find((w) => w.name === selectedWallet);
+            if (wallet) {
+                // Convert the currency string to the expected type
+                const currency = wallet.currency.toLowerCase();
+                if (currency === "vnd" || currency === "usd") {
+                    setValue("currency", currency);
+                }
+            }
+        }
+    }, [selectedWallet, wallets, setValue]);
 
     const onSubmit = async (data: z.infer<typeof TransactionSchema>) => {
         try {
+            setIsLoading(true);
+            setError("");
             console.log("Form data:", data);
-
-            // Initialize database if not already
-            await db.initDatabase();
 
             // Create transaction object for database that matches the transaction_log table schema
             const transaction = {
@@ -134,13 +190,15 @@ export default function NewTransactionScreen({
             };
 
             // Add transaction to store for UI updates
-            addTransaction(storeTransaction);
+            await addTransaction(storeTransaction);
 
             // Show success modal
             setShowSuccessModal(true);
         } catch (error) {
             console.error("Error creating transaction:", error);
-            // Handle error (show error message to user)
+            setError("Failed to create transaction. Please try again.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -161,87 +219,186 @@ export default function NewTransactionScreen({
                 </TouchableOpacity>
             </View>
 
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>New Transaction</Text>
-
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Type</Text>
-                    <Controller
-                        control={control}
-                        name="type"
-                        render={({ field: { onChange, value } }) => (
-                            <SegmentedControl
-                                options={[
-                                    { label: "Expense", value: "expense" },
-                                    { label: "Income", value: "income" },
-                                ]}
-                                selectedValue={value}
-                                onChange={onChange}
-                                style={styles.segmentedControl}
-                            />
-                        )}
-                    />
-                    {errors.type && (
-                        <Text style={styles.errorText}>
-                            {errors.type.message}
-                        </Text>
-                    )}
+            {isLoadingOptions ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>Loading...</Text>
                 </View>
+            ) : (
+                <ScrollView
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}>
+                    <Text style={styles.title}>New Transaction</Text>
 
-                <View style={styles.formRow}>
-                    <View style={styles.formColumn}>
-                        <Text style={styles.sectionLabel}>Amount</Text>
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Type</Text>
                         <Controller
                             control={control}
-                            name="amount"
+                            name="type"
                             render={({ field: { onChange, value } }) => (
-                                <TextInput
-                                    style={[
-                                        styles.amountInput,
-                                        errors.amount && styles.inputError,
+                                <SegmentedControl
+                                    options={[
+                                        { label: "Expense", value: "expense" },
+                                        { label: "Income", value: "income" },
                                     ]}
-                                    placeholder="Amount"
-                                    value={value?.toString() || ""}
-                                    onChangeText={(text) => {
-                                        const numValue = parseFloat(text);
-                                        onChange(
-                                            !isNaN(numValue) ? numValue : 0
-                                        );
-                                    }}
-                                    keyboardType="number-pad"
+                                    selectedValue={value}
+                                    onChange={onChange}
+                                    style={styles.segmentedControl}
                                 />
                             )}
                         />
-                        {errors.amount && (
+                        {errors.type && (
                             <Text style={styles.errorText}>
-                                {errors.amount.message}
+                                {errors.type.message}
                             </Text>
                         )}
                     </View>
 
-                    <View style={styles.formColumn}>
-                        <Text style={styles.sectionLabel}>Currency</Text>
+                    <View style={styles.formRow}>
+                        <View style={styles.formColumn}>
+                            <Text style={styles.sectionLabel}>Amount</Text>
+                            <Controller
+                                control={control}
+                                name="amount"
+                                render={({ field: { onChange, value } }) => (
+                                    <TextInput
+                                        style={[
+                                            styles.amountInput,
+                                            errors.amount && styles.inputError,
+                                        ]}
+                                        placeholder="Amount"
+                                        value={value?.toString() || ""}
+                                        onChangeText={(text) => {
+                                            const numValue = parseFloat(text);
+                                            onChange(
+                                                !isNaN(numValue) ? numValue : 0
+                                            );
+                                        }}
+                                        keyboardType="number-pad"
+                                        editable={!isLoading}
+                                    />
+                                )}
+                            />
+                            {errors.amount && (
+                                <Text style={styles.errorText}>
+                                    {errors.amount.message}
+                                </Text>
+                            )}
+                        </View>
+
+                        <View style={styles.formColumn}>
+                            <Text style={styles.sectionLabel}>Currency</Text>
+                            <Controller
+                                control={control}
+                                name="currency"
+                                render={({ field: { onChange, value } }) => (
+                                    <Select
+                                        selectedValue={value}
+                                        onValueChange={onChange}
+                                        isDisabled={true} // Currency is derived from wallet
+                                    >
+                                        <SelectTrigger
+                                            variant="outline"
+                                            className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
+                                            size="md">
+                                            <SelectInput
+                                                placeholder="Select Currency"
+                                                value={value.toUpperCase()}
+                                            />
+                                            <SelectIcon
+                                                className="mr-3"
+                                                as={ChevronDownIcon}
+                                            />
+                                        </SelectTrigger>
+                                        <SelectPortal className="">
+                                            <SelectBackdrop />
+                                            <SelectContent className="">
+                                                <SelectDragIndicatorWrapper>
+                                                    <SelectDragIndicator />
+                                                </SelectDragIndicatorWrapper>
+                                                <SelectItem
+                                                    label="VND"
+                                                    value="vnd"
+                                                />
+                                                <SelectItem
+                                                    label="USD"
+                                                    value="usd"
+                                                />
+                                            </SelectContent>
+                                        </SelectPortal>
+                                    </Select>
+                                )}
+                            />
+                            {errors.currency && (
+                                <Text style={styles.errorText}>
+                                    {errors.currency.message}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Date</Text>
                         <Controller
                             control={control}
-                            name="currency"
+                            name="date"
+                            render={({ field: { value } }) => (
+                                <TouchableOpacity
+                                    style={styles.selectButton}
+                                    disabled={isLoading}
+                                    onPress={() => {
+                                        DateTimePickerAndroid.open({
+                                            value: new Date(value),
+                                            onChange: (event, selectedDate) => {
+                                                if (selectedDate) {
+                                                    setValue(
+                                                        "date",
+                                                        selectedDate.toISOString()
+                                                    );
+                                                }
+                                            },
+                                        });
+                                    }}>
+                                    <Text style={styles.selectButtonText}>
+                                        {new Date(value).toLocaleDateString()}
+                                    </Text>
+                                    <ChevronDown
+                                        size={16}
+                                        color={colors.text}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        />
+                        {errors.date && (
+                            <Text style={styles.errorText}>
+                                {errors.date.message}
+                            </Text>
+                        )}
+                    </View>
+
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Wallet</Text>
+                        <Controller
+                            control={control}
+                            name="wallet"
                             render={({ field: { onChange, value } }) => (
                                 <Select
                                     selectedValue={value}
-                                    onValueChange={onChange}>
+                                    onValueChange={onChange}
+                                    isDisabled={isLoading}>
                                     <SelectTrigger
                                         variant="outline"
                                         className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
                                         size="md">
                                         <SelectInput
-                                            placeholder="Select Currency"
-                                            value={value.toUpperCase()}
+                                            style={styles.selectButtonText}
+                                            className="p-0"
+                                            placeholder="Select Wallet"
                                         />
                                         <SelectIcon
-                                            className="mr-3"
-                                            as={ChevronDownIcon}
+                                            className=""
+                                            as={ChevronRightIcon}
                                         />
                                     </SelectTrigger>
                                     <SelectPortal className="">
@@ -250,289 +407,190 @@ export default function NewTransactionScreen({
                                             <SelectDragIndicatorWrapper>
                                                 <SelectDragIndicator />
                                             </SelectDragIndicatorWrapper>
-                                            <SelectItem
-                                                label="VND"
-                                                value="vnd"
-                                            />
-                                            <SelectItem
-                                                label="USD"
-                                                value="usd"
-                                            />
+                                            {wallets.length === 0 ? (
+                                                <SelectItem
+                                                    label="No wallets available"
+                                                    value=""
+                                                    isDisabled={true}
+                                                />
+                                            ) : (
+                                                wallets.map((wallet) => (
+                                                    <SelectItem
+                                                        key={wallet.name}
+                                                        label={wallet.name}
+                                                        value={wallet.name}
+                                                    />
+                                                ))
+                                            )}
                                         </SelectContent>
                                     </SelectPortal>
                                 </Select>
                             )}
                         />
-                        {errors.currency && (
+                        {errors.wallet && (
                             <Text style={styles.errorText}>
-                                {errors.currency.message}
+                                {errors.wallet.message}
                             </Text>
                         )}
                     </View>
-                </View>
 
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Date</Text>
-                    <Controller
-                        control={control}
-                        name="date"
-                        render={({ field: { value } }) => (
-                            <TouchableOpacity
-                                style={styles.selectButton}
-                                onPress={() => {
-                                    DateTimePickerAndroid.open({
-                                        value: new Date(value),
-                                        onChange: (event, selectedDate) => {
-                                            if (selectedDate) {
-                                                setValue(
-                                                    "date",
-                                                    selectedDate.toISOString()
-                                                );
-                                            }
-                                        },
-                                    });
-                                }}>
-                                <Text style={styles.selectButtonText}>
-                                    {new Date(value).toLocaleDateString()}
-                                </Text>
-                                <ChevronDown size={16} color={colors.text} />
-                            </TouchableOpacity>
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Category</Text>
+                        <Controller
+                            control={control}
+                            name="category"
+                            render={({ field: { onChange, value } }) => (
+                                <Select
+                                    selectedValue={value}
+                                    onValueChange={onChange}
+                                    isDisabled={isLoading}>
+                                    <SelectTrigger
+                                        variant="outline"
+                                        className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
+                                        size="md">
+                                        <SelectInput
+                                            style={styles.selectButtonText}
+                                            className="px-0"
+                                            placeholder="Select Category"
+                                        />
+                                        <SelectIcon
+                                            className=""
+                                            as={ChevronRightIcon}
+                                        />
+                                    </SelectTrigger>
+                                    <SelectPortal className="">
+                                        <SelectBackdrop />
+                                        <SelectContent className="">
+                                            <SelectDragIndicatorWrapper>
+                                                <SelectDragIndicator />
+                                            </SelectDragIndicatorWrapper>
+                                            {categories.length === 0 ? (
+                                                <SelectItem
+                                                    label="No categories available"
+                                                    value=""
+                                                    isDisabled={true}
+                                                />
+                                            ) : (
+                                                categories.map((category) => (
+                                                    <SelectItem
+                                                        key={category.name}
+                                                        label={category.name}
+                                                        value={category.name}
+                                                    />
+                                                ))
+                                            )}
+                                        </SelectContent>
+                                    </SelectPortal>
+                                </Select>
+                            )}
+                        />
+                        {errors.category && (
+                            <Text style={styles.errorText}>
+                                {errors.category.message}
+                            </Text>
                         )}
-                    />
-                    {errors.date && (
-                        <Text style={styles.errorText}>
-                            {errors.date.message}
-                        </Text>
-                    )}
-                </View>
+                    </View>
 
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Wallet</Text>
-                    <Controller
-                        control={control}
-                        name="wallet"
-                        render={({ field: { onChange, value } }) => (
-                            // <TouchableOpacity
-                            //     style={[
-                            //         styles.selectButton,
-                            //         errors.wallet && styles.inputError,
-                            //     ]}
-                            //     onPress={() => {
-                            //         // In a real implementation, this would navigate to wallet selection
-                            //         // For now, let's just set a dummy value
-                            //         onChange("My Wallet");
-                            //     }}>
-                            //     <Text style={styles.selectButtonText}>
-                            //         {value || "Choose Wallet"}
-                            //     </Text>
-                            //     <ChevronRight size={16} color={colors.text} />
-                            // </TouchableOpacity>
-                            <Select
-                                selectedValue={value}
-                                onValueChange={onChange}>
-                                <SelectTrigger
-                                    variant="outline"
-                                    className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
-                                    size="md">
-                                    <SelectInput
-                                        style={styles.selectButtonText}
-                                        className="p-0"
-                                        placeholder="Select Wallet"
-                                    />
-                                    <SelectIcon
-                                        className=""
-                                        as={ChevronRightIcon}
-                                    />
-                                </SelectTrigger>
-                                <SelectPortal className="">
-                                    <SelectBackdrop />
-                                    <SelectContent className="">
-                                        <SelectDragIndicatorWrapper>
-                                            <SelectDragIndicator />
-                                        </SelectDragIndicatorWrapper>
-                                        {wallets.map((wallet) => (
-                                            <SelectItem
-                                                key={wallet.name}
-                                                label={wallet.name}
-                                                value={wallet.name}
-                                            />
-                                        ))}
-                                    </SelectContent>
-                                </SelectPortal>
-                            </Select>
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Repeat</Text>
+                        <Controller
+                            control={control}
+                            name="repeat"
+                            render={({ field: { onChange, value } }) => (
+                                <Select
+                                    selectedValue={value}
+                                    onValueChange={onChange}
+                                    isDisabled={isLoading}>
+                                    <SelectTrigger
+                                        variant="outline"
+                                        className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
+                                        size="md">
+                                        <SelectInput
+                                            style={styles.selectButtonText}
+                                            className="px-0"
+                                            placeholder="Select Repeat"
+                                        />
+                                        <SelectIcon
+                                            className=""
+                                            as={ChevronRightIcon}
+                                        />
+                                    </SelectTrigger>
+                                    <SelectPortal className="">
+                                        <SelectBackdrop />
+                                        <SelectContent className="">
+                                            <SelectDragIndicatorWrapper>
+                                                <SelectDragIndicator />
+                                            </SelectDragIndicatorWrapper>
+                                            {repeats.map((repeat) => (
+                                                <SelectItem
+                                                    key={repeat.name}
+                                                    label={repeat.name}
+                                                    value={repeat.name}
+                                                />
+                                            ))}
+                                        </SelectContent>
+                                    </SelectPortal>
+                                </Select>
+                            )}
+                        />
+                        {errors.repeat && (
+                            <Text style={styles.errorText}>
+                                {errors.repeat.message}
+                            </Text>
                         )}
-                    />
-                    {errors.wallet && (
-                        <Text style={styles.errorText}>
-                            {errors.wallet.message}
-                        </Text>
-                    )}
-                </View>
+                    </View>
 
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Category</Text>
-                    <Controller
-                        control={control}
-                        name="category"
-                        render={({ field: { onChange, value } }) => (
-                            // <TouchableOpacity
-                            //     style={[
-                            //         styles.selectButton,
-                            //         errors.category && styles.inputError,
-                            //     ]}
-                            //     onPress={() => {
-                            //         // In a real implementation, this would navigate to category selection
-                            //         // For now, let's just set a dummy value
-                            //         onChange("Food & Drinks");
-                            //     }}>
-                            //     <Text style={styles.selectButtonText}>
-                            //         {value || "Category"}
-                            //     </Text>
-                            //     <ChevronRight size={16} color={colors.text} />
-                            // </TouchableOpacity>
-                            <Select
-                                selectedValue={value}
-                                onValueChange={onChange}>
-                                <SelectTrigger
-                                    variant="outline"
-                                    className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
-                                    size="md">
-                                    <SelectInput
-                                        style={styles.selectButtonText}
-                                        className="px-0"
-                                        placeholder="Select Category"
-                                    />
-                                    <SelectIcon
-                                        className=""
-                                        as={ChevronRightIcon}
-                                    />
-                                </SelectTrigger>
-                                <SelectPortal className="">
-                                    <SelectBackdrop />
-                                    <SelectContent className="">
-                                        <SelectDragIndicatorWrapper>
-                                            <SelectDragIndicator />
-                                        </SelectDragIndicatorWrapper>
-                                        {categories.map((category) => (
-                                            <SelectItem
-                                                key={category.name}
-                                                label={category.name}
-                                                value={category.name}
-                                            />
-                                        ))}
-                                    </SelectContent>
-                                </SelectPortal>
-                            </Select>
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Note</Text>
+                        <Controller
+                            control={control}
+                            name="note"
+                            render={({ field: { onChange, value } }) => (
+                                <TextInput
+                                    style={styles.noteInput}
+                                    placeholder="Note"
+                                    value={value}
+                                    onChangeText={onChange}
+                                    multiline
+                                    editable={!isLoading}
+                                />
+                            )}
+                        />
+                        {errors.note && (
+                            <Text style={styles.errorText}>
+                                {errors.note.message}
+                            </Text>
                         )}
-                    />
-                    {errors.category && (
-                        <Text style={styles.errorText}>
-                            {errors.category.message}
-                        </Text>
+                    </View>
+
+                    <View style={styles.formSection}>
+                        <Text style={styles.sectionLabel}>Add a picture</Text>
+                        <TouchableOpacity
+                            style={styles.addPictureButton}
+                            disabled={isLoading}
+                            onPress={() => {
+                                // This would open the image picker
+                                // and update the form value with the selected image
+                            }}>
+                            <Plus size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {error && (
+                        <View style={{ marginBottom: 12 }}>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
                     )}
-                </View>
 
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Repeat</Text>
-                    <Controller
-                        control={control}
-                        name="repeat"
-                        render={({ field: { onChange, value } }) => (
-                            // <TouchableOpacity
-                            //     style={styles.selectButton}
-                            //     onPress={() => {
-                            //         // Toggle between None and Weekly as an example
-                            //         onChange(
-                            //             value === "None" ? "Weekly" : "None"
-                            //         );
-                            //     }}>
-                            //     <Text style={styles.selectButtonText}>
-                            //         {value}
-                            //     </Text>
-                            //     <ChevronDown size={16} color={colors.text} />
-                            // </TouchableOpacity>
-                            <Select
-                                selectedValue={value}
-                                onValueChange={onChange}>
-                                <SelectTrigger
-                                    variant="outline"
-                                    className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
-                                    size="md">
-                                    <SelectInput
-                                        style={styles.selectButtonText}
-                                        className="px-0"
-                                        placeholder="Select Repeat"
-                                    />
-                                    <SelectIcon
-                                        className=""
-                                        as={ChevronRightIcon}
-                                    />
-                                </SelectTrigger>
-                                <SelectPortal className="">
-                                    <SelectBackdrop />
-                                    <SelectContent className="">
-                                        <SelectDragIndicatorWrapper>
-                                            <SelectDragIndicator />
-                                        </SelectDragIndicatorWrapper>
-                                        {repeats.map((repeat) => (
-                                            <SelectItem
-                                                key={repeat.name}
-                                                label={repeat.name}
-                                                value={repeat.name}
-                                            />
-                                        ))}
-                                    </SelectContent>
-                                </SelectPortal>
-                            </Select>
-                        )}
+                    <Button
+                        title={isLoading ? "Adding..." : "Add Transaction"}
+                        onPress={handleSubmit(onSubmit)}
+                        style={styles.addButton}
+                        loading={isLoading}
+                        disabled={isLoading}
                     />
-                    {errors.repeat && (
-                        <Text style={styles.errorText}>
-                            {errors.repeat.message}
-                        </Text>
-                    )}
-                </View>
-
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Note</Text>
-                    <Controller
-                        control={control}
-                        name="note"
-                        render={({ field: { onChange, value } }) => (
-                            <TextInput
-                                style={styles.noteInput}
-                                placeholder="Note"
-                                value={value}
-                                onChangeText={onChange}
-                                multiline
-                            />
-                        )}
-                    />
-                    {errors.note && (
-                        <Text style={styles.errorText}>
-                            {errors.note.message}
-                        </Text>
-                    )}
-                </View>
-
-                <View style={styles.formSection}>
-                    <Text style={styles.sectionLabel}>Add a picture</Text>
-                    <TouchableOpacity
-                        style={styles.addPictureButton}
-                        onPress={() => {
-                            // This would open the image picker
-                            // and update the form value with the selected image
-                        }}>
-                        <Plus size={24} color="white" />
-                    </TouchableOpacity>
-                </View>
-
-                <Button
-                    title="Add Transaction"
-                    onPress={handleSubmit(onSubmit)}
-                    style={styles.addButton}
-                />
-            </ScrollView>
+                </ScrollView>
+            )}
 
             <SuccessModal
                 visible={showSuccessModal}
@@ -665,5 +723,15 @@ const styles = StyleSheet.create({
     addButton: {
         marginTop: 16,
         marginBottom: 32,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: colors.textSecondary,
     },
 });

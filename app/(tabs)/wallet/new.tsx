@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     TextInput,
     ScrollView,
+    ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,6 +19,8 @@ import { WalletSchema } from "@/libs/validation";
 import { Wallpaper } from "lucide-react-native";
 import { db } from "@/service/database";
 import Button from "@/components/ui/Button";
+import { useWalletStore } from "@/stores/walletStore";
+import { useCategoryStore } from "@/stores/categoryStore";
 import {
     Select,
     SelectTrigger,
@@ -34,6 +37,17 @@ import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 
 export default function NewWalletScreen() {
     const router = useRouter();
+
+    // Wallet store
+    const addWallet = useWalletStore((state) => state.addWallet);
+    const isWalletLoading = useWalletStore((state) => state.isLoading);
+    const walletError = useWalletStore((state) => state.error);
+
+    // Category store - use categories from the store instead of loading from database
+    const categories = useCategoryStore((state) => state.categories);
+    const isCategoriesLoading = useCategoryStore((state) => state.isLoading);
+
+    const [formSubmitting, setFormSubmitting] = useState(false);
 
     const {
         control,
@@ -53,7 +67,33 @@ export default function NewWalletScreen() {
 
     const onSubmit = async (data: z.infer<typeof WalletSchema>) => {
         console.log("Form data:", data);
+
+        try {
+            setFormSubmitting(true);
+
+            // Convert to wallet format for store
+            const walletData = {
+                name: data.name,
+                balance: data.init_amount,
+                currency: data.currency,
+            };
+
+            // Add wallet through store (which updates database)
+            const result = await addWallet(walletData);
+
+            if (result) {
+                // Navigate back to wallet list on success
+                router.push("/(tabs)/wallet");
+            }
+        } catch (err) {
+            console.error("Error creating wallet:", err);
+        } finally {
+            setFormSubmitting(false);
+        }
     };
+
+    // Combined loading state
+    const isLoading = isWalletLoading || isCategoriesLoading || formSubmitting;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -98,6 +138,7 @@ export default function NewWalletScreen() {
                                             }}
                                             value={value}
                                             placeholder="Wallet name"
+                                            editable={!isLoading}
                                         />
                                         {errors.name && (
                                             <Text style={styles.errorText}>
@@ -137,6 +178,7 @@ export default function NewWalletScreen() {
                                             );
                                         }}
                                         keyboardType="number-pad"
+                                        editable={!isLoading}
                                     />
                                 )}
                             />
@@ -156,7 +198,8 @@ export default function NewWalletScreen() {
                             render={({ field: { onChange, value } }) => (
                                 <Select
                                     selectedValue={value}
-                                    onValueChange={onChange}>
+                                    onValueChange={onChange}
+                                    isDisabled={isLoading}>
                                     <SelectTrigger
                                         variant="outline"
                                         className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
@@ -198,13 +241,15 @@ export default function NewWalletScreen() {
                 </View>
 
                 <View style={styles.formSection}>
+                    <Text style={styles.sectionLabel}>Category</Text>
                     <Controller
                         control={control}
                         name="visible_category"
                         render={({ field: { onChange, value } }) => (
                             <Select
                                 selectedValue={value}
-                                onValueChange={onChange}>
+                                onValueChange={onChange}
+                                isDisabled={isLoading}>
                                 <SelectTrigger
                                     variant="outline"
                                     className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
@@ -224,15 +269,32 @@ export default function NewWalletScreen() {
                                         <SelectDragIndicatorWrapper>
                                             <SelectDragIndicator />
                                         </SelectDragIndicatorWrapper>
-                                        {/* Add your categories here */}
-                                        <SelectItem
-                                            label="Category 1"
-                                            value="category1"
-                                        />
-                                        <SelectItem
-                                            label="Category 2"
-                                            value="category2"
-                                        />
+                                        {isCategoriesLoading ? (
+                                            <View
+                                                style={{
+                                                    padding: 10,
+                                                    alignItems: "center",
+                                                }}>
+                                                <ActivityIndicator size="small" />
+                                                <Text style={{ marginTop: 5 }}>
+                                                    Loading categories...
+                                                </Text>
+                                            </View>
+                                        ) : categories.length > 0 ? (
+                                            categories.map((category) => (
+                                                <SelectItem
+                                                    key={category.name}
+                                                    label={category.name}
+                                                    value={category.name}
+                                                />
+                                            ))
+                                        ) : (
+                                            <SelectItem
+                                                label="No categories available"
+                                                value=""
+                                                isDisabled={true}
+                                            />
+                                        )}
                                     </SelectContent>
                                 </SelectPortal>
                             </Select>
@@ -244,12 +306,19 @@ export default function NewWalletScreen() {
                         </Text>
                     )}
                 </View>
-                {/* Add more form fields as needed */}
+
+                {walletError && (
+                    <View style={{ marginBottom: 10 }}>
+                        <Text style={styles.errorText}>{walletError}</Text>
+                    </View>
+                )}
 
                 <Button
-                    title="Create Wallet"
+                    title={isLoading ? "Creating..." : "Create Wallet"}
                     onPress={handleSubmit(onSubmit)}
                     style={styles.addButton}
+                    loading={isLoading}
+                    disabled={isLoading}
                 />
             </ScrollView>
         </SafeAreaView>
@@ -257,7 +326,6 @@ export default function NewWalletScreen() {
 }
 
 const styles = StyleSheet.create({
-    // ...existing code...
     errorText: {
         color: "red",
         fontSize: 12,

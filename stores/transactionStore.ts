@@ -12,14 +12,22 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
+import { transactionService } from "@/service/TransactionService";
+import { db } from "@/service/database";
 
 interface TransactionState {
     transactions: Transaction[];
+    isLoading: boolean;
+    error: string | null;
 
     // Actions
-    addTransaction: (transaction: Transaction) => string;
-    updateTransaction: (id: string, transaction: Partial<Transaction>) => void;
-    deleteTransaction: (id: string) => void;
+    loadTransactions: (limit?: number) => Promise<void>;
+    addTransaction: (transaction: Transaction) => Promise<string>;
+    updateTransaction: (
+        id: string,
+        transaction: Partial<Transaction>
+    ) => Promise<void>;
+    deleteTransaction: (id: string) => Promise<void>;
     getTransactionById: (id: string) => Transaction | undefined;
 
     // Filters
@@ -50,27 +58,188 @@ export const useTransactionStore = create<TransactionState>()(
     persist(
         (set, get) => ({
             transactions: [],
+            isLoading: false,
+            error: null,
 
-            addTransaction: (transaction) => {
-                const newTransaction = transaction;
-                set((state) => ({
-                    transactions: [newTransaction, ...state.transactions],
-                }));
-                return transaction.id;
+            loadTransactions: async (limit = 50) => {
+                try {
+                    set({ isLoading: true, error: null });
+
+                    // Initialize database if not already
+                    await db.initDatabase();
+
+                    // Get transactions from database
+                    const dbTransactions =
+                        await transactionService.getAllTransactions();
+
+                    // Take only the most recent transactions up to the limit
+                    const limitedTransactions = dbTransactions.slice(0, limit);
+
+                    // Convert to Transaction[] format
+                    const transactions = limitedTransactions.map(
+                        (transaction) => ({
+                            id: String(transaction.id),
+                            amount: transaction.amount,
+                            type: transaction.type,
+                            category: transaction.category,
+                            date: new Date(transaction.date),
+                            walletId: "1", // Legacy field needed by store
+                            wallet: transaction.wallet,
+                            categoryId: "1", // Legacy field needed by store
+                            isRecurring: transaction.repeat !== "None",
+                            note: transaction.note || "",
+                        })
+                    );
+
+                    set({ transactions, isLoading: false });
+                } catch (error) {
+                    console.error("Error loading transactions:", error);
+                    set({
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : "Unknown error loading transactions",
+                        isLoading: false,
+                    });
+                }
             },
 
-            updateTransaction: (id, transaction) => {
-                set((state) => ({
-                    transactions: state.transactions.map((t) =>
-                        t.id === id ? { ...t, ...transaction } : t
-                    ),
-                }));
+            addTransaction: async (transaction) => {
+                try {
+                    set({ isLoading: true, error: null });
+
+                    // Format for database
+                    const dbTransaction = {
+                        type: transaction.type,
+                        amount: transaction.amount,
+                        currency: "vnd", // Default to VND if not specified
+                        date: transaction.date.toISOString(),
+                        wallet: transaction.wallet,
+                        category: transaction.category,
+                        repeat: transaction.isRecurring ? "monthly" : "None", // Default to monthly if recurring
+                        note: transaction.note || "",
+                        picture: "",
+                    };
+
+                    // Add to database
+                    const transactionId =
+                        await transactionService.createTransaction(
+                            dbTransaction
+                        );
+                    const newTransaction = {
+                        ...transaction,
+                        id: String(transactionId),
+                    };
+
+                    // Update state
+                    set((state) => ({
+                        transactions: [newTransaction, ...state.transactions],
+                        isLoading: false,
+                    }));
+
+                    return String(transactionId);
+                } catch (error) {
+                    console.error("Error creating transaction:", error);
+                    set({
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : "Unknown error creating transaction",
+                        isLoading: false,
+                    });
+                    return "";
+                }
             },
 
-            deleteTransaction: (id) => {
-                set((state) => ({
-                    transactions: state.transactions.filter((t) => t.id !== id),
-                }));
+            updateTransaction: async (id, transaction) => {
+                try {
+                    set({ isLoading: true, error: null });
+
+                    // Get existing transaction
+                    const existing = get().getTransactionById(id);
+                    if (!existing) {
+                        throw new Error(`Transaction with id ${id} not found`);
+                    }
+
+                    // Format for database
+                    const dbTransaction: Partial<{
+                        type: "expense" | "income";
+                        amount: number;
+                        currency: string;
+                        date: string;
+                        wallet: string;
+                        category: string;
+                        repeat: string;
+                        note: string;
+                        picture: string;
+                    }> = {};
+
+                    if (transaction.type) dbTransaction.type = transaction.type;
+                    if (transaction.amount !== undefined)
+                        dbTransaction.amount = transaction.amount;
+                    if (transaction.date)
+                        dbTransaction.date = transaction.date.toISOString();
+                    if (transaction.wallet)
+                        dbTransaction.wallet = transaction.wallet;
+                    if (transaction.category)
+                        dbTransaction.category = transaction.category;
+                    if (transaction.isRecurring !== undefined) {
+                        dbTransaction.repeat = transaction.isRecurring
+                            ? "monthly"
+                            : "None";
+                    }
+                    if (transaction.note !== undefined)
+                        dbTransaction.note = transaction.note;
+
+                    // Update in database
+                    await transactionService.updateTransaction(
+                        parseInt(id),
+                        dbTransaction
+                    );
+
+                    // Update state
+                    set((state) => ({
+                        transactions: state.transactions.map((t) =>
+                            t.id === id ? { ...t, ...transaction } : t
+                        ),
+                        isLoading: false,
+                    }));
+                } catch (error) {
+                    console.error(`Error updating transaction ${id}:`, error);
+                    set({
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : "Unknown error updating transaction",
+                        isLoading: false,
+                    });
+                }
+            },
+
+            deleteTransaction: async (id) => {
+                try {
+                    set({ isLoading: true, error: null });
+
+                    // Delete from database
+                    await transactionService.deleteTransaction(parseInt(id));
+
+                    // Update state
+                    set((state) => ({
+                        transactions: state.transactions.filter(
+                            (t) => t.id !== id
+                        ),
+                        isLoading: false,
+                    }));
+                } catch (error) {
+                    console.error(`Error deleting transaction ${id}:`, error);
+                    set({
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : "Unknown error deleting transaction",
+                        isLoading: false,
+                    });
+                }
             },
 
             getTransactionById: (id) => {

@@ -18,8 +18,49 @@ import { useUserStore } from "@/stores/userStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useCategoryStore } from "@/stores/categoryStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 import { Eye, EyeOff, User, Lock } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { db } from "@/service/database";
+
+const testDatabaseSetup = async () => {
+    try {
+        console.log("=== TESTING DATABASE SETUP ===");
+
+        // Initialize database
+        await db.initDatabase();
+        console.log("Database initialized in login screen");
+
+        // Create a test table
+        try {
+            await db.executeQuery(
+                "CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY, name TEXT)"
+            );
+            console.log("Test table created successfully");
+
+            // Insert a test record
+            await db.executeParameterizedQuery(
+                "INSERT INTO test_table (name) VALUES (?)",
+                ["Test Record"]
+            );
+            console.log("Test record inserted");
+
+            // Query the test record
+            const results = await db.executeQuery("SELECT * FROM test_table");
+            console.log("Test query results:", results);
+
+            // Clean up
+            await db.executeQuery("DROP TABLE test_table");
+            console.log("Test table dropped");
+        } catch (e) {
+            console.error("Error in test operations:", e);
+        }
+
+        console.log("=== DATABASE SETUP TEST COMPLETED ===");
+    } catch (e) {
+        console.error("Database setup test failed:", e);
+    }
+};
 
 export default function LoginScreen() {
     const [activeTab, setActiveTab] = useState("login");
@@ -32,13 +73,13 @@ export default function LoginScreen() {
 
     const router = useRouter();
     const login = useUserStore((state) => state.login);
-    const initializeDefaultWallet = useWalletStore(
-        (state) => state.initializeDefaultWallet
+
+    // Store initialization methods
+    const loadWallets = useWalletStore((state) => state.loadWallets);
+    const loadCategories = useCategoryStore((state) => state.loadCategories);
+    const loadTransactions = useTransactionStore(
+        (state) => state.loadTransactions
     );
-    const initializeDefaultCategory = useCategoryStore(
-        (state) => state.initializeDefaultCategory
-    );
-    const resetCategory = useCategoryStore((state) => state.resetCategories);
     const initializeSampleNotifications = useNotificationStore(
         (state) => state.initializeSampleNotifications
     );
@@ -53,15 +94,34 @@ export default function LoginScreen() {
         setError("");
 
         try {
+            // Test database setup first
+            await testDatabaseSetup();
+
             // Simulate API call
             const success = await login(email, password);
 
             if (success) {
-                // Initialize app data
-                initializeDefaultWallet();
-                initializeSampleNotifications();
-                initializeDefaultCategory();
-                // resetCategory();
+                // Initialize database
+                await db.initDatabase();
+
+                // Load data from database into stores
+                try {
+                    console.log("Loading categories...");
+                    await loadCategories();
+
+                    console.log("Loading wallets...");
+                    await loadWallets();
+
+                    // Then load transactions (most recent 50)
+                    console.log("Loading transactions...");
+                    await loadTransactions(50);
+
+                    // Load sample notifications (temporary)
+                    await initializeSampleNotifications();
+                } catch (err) {
+                    console.error("Error loading data:", err);
+                    // Continue to home screen even if there's an error loading data
+                }
 
                 // Navigate to home
                 router.replace("/(tabs)");
