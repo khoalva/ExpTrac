@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, Link } from "expo-router";
 import { colors } from "@/constants/Colors";
 import { useUserStore } from "@/stores/userStore";
 import { useTransactionStore } from "@/stores/transactionStore";
+import { useCategoryStore } from "@/stores/categoryStore";
+import { useWalletStore } from "@/stores/walletStore";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import SegmentedControl from "@/components/ui/SegmentedControl";
@@ -39,24 +41,15 @@ import {
 } from "@/components/ui/select";
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import { db } from "@/service/database";
 import { transactionService } from "@/service/TransactionService";
 import { walletService } from "@/service/WalletService";
 import { categoryService } from "@/service/CategoryService";
-import { db } from "@/service/database";
+
 // would later use zustand to store the latest screen before this screen, to navigate back to when back button is pressed
 type TransactionScreenProps = {
-    callBackScreen: string;
+    callBackScreen?: string;
 };
-
-// dummy data
-
-const wallets = [{ name: "My Wallet" }, { name: "Family Wallet" }];
-
-const categories = [
-    { name: "Food & Drinks" },
-    { name: "Shopping" },
-    { name: "Transportation" },
-];
 
 const repeats = [
     { name: "None" },
@@ -70,7 +63,23 @@ export default function NewTransactionScreen({
 }: TransactionScreenProps) {
     const router = useRouter();
     const user = useUserStore((state) => state.user);
+
+    // Transaction store
     const addTransaction = useTransactionStore((state) => state.addTransaction);
+    const isTransactionLoading = useTransactionStore(
+        (state) => state.isLoading
+    );
+    const transactionError = useTransactionStore((state) => state.error);
+
+    // Category store
+    const categoriesFromStore = useCategoryStore((state) => state.categories);
+    const isCategoriesLoading = useCategoryStore((state) => state.isLoading);
+
+    // Wallet store
+    const walletsFromStore = useWalletStore((state) => state.wallets);
+    const selectedWalletId = useWalletStore((state) => state.selectedWalletId);
+    const isWalletsLoading = useWalletStore((state) => state.isLoading);
+
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
@@ -89,18 +98,31 @@ export default function NewTransactionScreen({
                 // Initialize database
                 await db.initDatabase();
 
-                // Load wallets and categories
-                const dbWallets = await walletService.getAllWallets();
-                const dbCategories = await categoryService.getAllCategories();
+                // Either use service directly or store data depending on which is populated
+                if (walletsFromStore.length > 0) {
+                    setWallets(
+                        walletsFromStore.map((wallet) => ({
+                            name: wallet.name,
+                            currency: wallet.currency,
+                        }))
+                    );
+                } else {
+                    const dbWallets = await walletService.getAllWallets();
+                    setWallets(
+                        dbWallets.map((wallet) => ({
+                            name: wallet.name,
+                            currency: wallet.currency,
+                        }))
+                    );
+                }
 
-                setWallets(
-                    dbWallets.map((wallet) => ({
-                        name: wallet.name,
-                        currency: wallet.currency,
-                    }))
-                );
-
-                setCategories(dbCategories);
+                if (categoriesFromStore.length > 0) {
+                    setCategories(categoriesFromStore);
+                } else {
+                    const dbCategories =
+                        await categoryService.getAllCategories();
+                    setCategories(dbCategories);
+                }
             } catch (error) {
                 console.error("Error loading options:", error);
                 setError("Failed to load wallets and categories");
@@ -110,7 +132,12 @@ export default function NewTransactionScreen({
         };
 
         loadOptions();
-    }, []);
+    }, [walletsFromStore, categoriesFromStore]);
+
+    // Find selected wallet name from store if available
+    const selectedWallet = selectedWalletId
+        ? walletsFromStore.find((w) => w.id === selectedWalletId)?.name || ""
+        : "";
 
     const {
         control,
@@ -125,7 +152,7 @@ export default function NewTransactionScreen({
             amount: 0,
             currency: "vnd",
             date: new Date().toISOString(),
-            wallet: "",
+            wallet: selectedWallet || "",
             category: "",
             repeat: "",
             note: "",
@@ -134,12 +161,12 @@ export default function NewTransactionScreen({
     });
 
     const transactionType = watch("type");
-    const selectedWallet = watch("wallet");
+    const watchedWallet = watch("wallet");
 
     // Update currency when wallet changes
     useEffect(() => {
-        if (selectedWallet) {
-            const wallet = wallets.find((w) => w.name === selectedWallet);
+        if (watchedWallet) {
+            const wallet = wallets.find((w) => w.name === watchedWallet);
             if (wallet) {
                 // Convert the currency string to the expected type
                 const currency = wallet.currency.toLowerCase();
@@ -148,7 +175,15 @@ export default function NewTransactionScreen({
                 }
             }
         }
-    }, [selectedWallet, wallets, setValue]);
+    }, [watchedWallet, wallets, setValue]);
+
+    // Combined loading state
+    const combinedLoadingState =
+        isLoading ||
+        isLoadingOptions ||
+        isTransactionLoading ||
+        isCategoriesLoading ||
+        isWalletsLoading;
 
     const onSubmit = async (data: z.infer<typeof TransactionSchema>) => {
         try {
@@ -156,41 +191,29 @@ export default function NewTransactionScreen({
             setError("");
             console.log("Form data:", data);
 
-            // Create transaction object for database that matches the transaction_log table schema
-            const transaction = {
-                type: data.type,
-                amount: data.amount,
-                currency: data.currency || "vnd",
-                date: new Date(data.date).toISOString(),
-                wallet: data.wallet,
-                category: data.category,
-                repeat: data.repeat || "None",
-                note: data.note || "",
-                picture: data.picture || "",
-            };
-
-            // Save transaction to database
-            const transactionId = await transactionService.createTransaction(
-                transaction
-            );
-            console.log(`Transaction created with ID: ${transactionId}`);
-
-            // Create transaction object for store (might have a different shape)
+            // Create transaction object for store (no need to create separately in database)
             const storeTransaction = {
-                id: transactionId.toString(),
+                id: "", // This will be assigned by the store/service
                 amount: data.amount,
                 type: data.type,
                 category: data.category,
                 date: new Date(data.date),
-                walletId: "1", // Legacy field needed by store
+                walletId: selectedWalletId || "1", // Use selected wallet ID if available
                 wallet: data.wallet,
                 categoryId: "1", // Legacy field needed by store
-                isRecurring: data.repeat !== "None",
+                isRecurring:
+                    data.repeat !== "None" && data.repeat !== undefined,
                 note: data.note || "",
             };
 
-            // Add transaction to store for UI updates
-            await addTransaction(storeTransaction);
+            // Add transaction to store - this will also save to the database
+            const transactionId = await addTransaction(storeTransaction);
+
+            if (!transactionId) {
+                throw new Error("Failed to create transaction");
+            }
+
+            console.log(`Transaction created with ID: ${transactionId}`);
 
             // Show success modal
             setShowSuccessModal(true);
@@ -219,7 +242,7 @@ export default function NewTransactionScreen({
                 </TouchableOpacity>
             </View>
 
-            {isLoadingOptions ? (
+            {combinedLoadingState && isLoadingOptions ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.loadingText}>Loading...</Text>
@@ -276,7 +299,7 @@ export default function NewTransactionScreen({
                                             );
                                         }}
                                         keyboardType="number-pad"
-                                        editable={!isLoading}
+                                        editable={!combinedLoadingState}
                                     />
                                 )}
                             />
@@ -346,7 +369,7 @@ export default function NewTransactionScreen({
                             render={({ field: { value } }) => (
                                 <TouchableOpacity
                                     style={styles.selectButton}
-                                    disabled={isLoading}
+                                    disabled={combinedLoadingState}
                                     onPress={() => {
                                         DateTimePickerAndroid.open({
                                             value: new Date(value),
@@ -386,7 +409,7 @@ export default function NewTransactionScreen({
                                 <Select
                                     selectedValue={value}
                                     onValueChange={onChange}
-                                    isDisabled={isLoading}>
+                                    isDisabled={combinedLoadingState}>
                                     <SelectTrigger
                                         variant="outline"
                                         className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
@@ -407,7 +430,21 @@ export default function NewTransactionScreen({
                                             <SelectDragIndicatorWrapper>
                                                 <SelectDragIndicator />
                                             </SelectDragIndicatorWrapper>
-                                            {wallets.length === 0 ? (
+                                            {isWalletsLoading ? (
+                                                <View
+                                                    style={{
+                                                        padding: 10,
+                                                        alignItems: "center",
+                                                    }}>
+                                                    <ActivityIndicator size="small" />
+                                                    <Text
+                                                        style={{
+                                                            marginTop: 5,
+                                                        }}>
+                                                        Loading wallets...
+                                                    </Text>
+                                                </View>
+                                            ) : wallets.length === 0 ? (
                                                 <SelectItem
                                                     label="No wallets available"
                                                     value=""
@@ -427,6 +464,19 @@ export default function NewTransactionScreen({
                                 </Select>
                             )}
                         />
+                        {wallets.length === 0 && !isWalletsLoading && (
+                            <Link href="/wallet/new" asChild>
+                                <TouchableOpacity>
+                                    <Text
+                                        style={{
+                                            color: colors.primary,
+                                            marginTop: 8,
+                                        }}>
+                                        + Create a wallet first
+                                    </Text>
+                                </TouchableOpacity>
+                            </Link>
+                        )}
                         {errors.wallet && (
                             <Text style={styles.errorText}>
                                 {errors.wallet.message}
@@ -443,7 +493,7 @@ export default function NewTransactionScreen({
                                 <Select
                                     selectedValue={value}
                                     onValueChange={onChange}
-                                    isDisabled={isLoading}>
+                                    isDisabled={combinedLoadingState}>
                                     <SelectTrigger
                                         variant="outline"
                                         className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
@@ -464,7 +514,21 @@ export default function NewTransactionScreen({
                                             <SelectDragIndicatorWrapper>
                                                 <SelectDragIndicator />
                                             </SelectDragIndicatorWrapper>
-                                            {categories.length === 0 ? (
+                                            {isCategoriesLoading ? (
+                                                <View
+                                                    style={{
+                                                        padding: 10,
+                                                        alignItems: "center",
+                                                    }}>
+                                                    <ActivityIndicator size="small" />
+                                                    <Text
+                                                        style={{
+                                                            marginTop: 5,
+                                                        }}>
+                                                        Loading categories...
+                                                    </Text>
+                                                </View>
+                                            ) : categories.length === 0 ? (
                                                 <SelectItem
                                                     label="No categories available"
                                                     value=""
@@ -500,7 +564,7 @@ export default function NewTransactionScreen({
                                 <Select
                                     selectedValue={value}
                                     onValueChange={onChange}
-                                    isDisabled={isLoading}>
+                                    isDisabled={combinedLoadingState}>
                                     <SelectTrigger
                                         variant="outline"
                                         className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
@@ -552,7 +616,7 @@ export default function NewTransactionScreen({
                                     value={value}
                                     onChangeText={onChange}
                                     multiline
-                                    editable={!isLoading}
+                                    editable={!combinedLoadingState}
                                 />
                             )}
                         />
@@ -567,7 +631,7 @@ export default function NewTransactionScreen({
                         <Text style={styles.sectionLabel}>Add a picture</Text>
                         <TouchableOpacity
                             style={styles.addPictureButton}
-                            disabled={isLoading}
+                            disabled={combinedLoadingState}
                             onPress={() => {
                                 // This would open the image picker
                                 // and update the form value with the selected image
@@ -576,18 +640,24 @@ export default function NewTransactionScreen({
                         </TouchableOpacity>
                     </View>
 
-                    {error && (
+                    {(error || transactionError) && (
                         <View style={{ marginBottom: 12 }}>
-                            <Text style={styles.errorText}>{error}</Text>
+                            <Text style={styles.errorText}>
+                                {error || transactionError}
+                            </Text>
                         </View>
                     )}
 
                     <Button
-                        title={isLoading ? "Adding..." : "Add Transaction"}
+                        title={
+                            combinedLoadingState
+                                ? "Adding..."
+                                : "Add Transaction"
+                        }
                         onPress={handleSubmit(onSubmit)}
                         style={styles.addButton}
-                        loading={isLoading}
-                        disabled={isLoading}
+                        loading={combinedLoadingState}
+                        disabled={combinedLoadingState}
                     />
                 </ScrollView>
             )}
