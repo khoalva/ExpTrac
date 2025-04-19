@@ -11,7 +11,7 @@ import { colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import { useUserStore } from "@/stores/userStore";
 import { useCategoryStore } from "@/stores/categoryStore";
-import Avatar from "@/components/ui/Avatar";
+import Avatar from "@/components/custom/Avatar";
 import { Button, ButtonText } from "@/components/ui/button/index";
 import CategoryModalForm from "@/components/modals/form/CategoryModalForm";
 import { db } from "@/service/database";

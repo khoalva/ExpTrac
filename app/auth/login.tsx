@@ -11,9 +11,9 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "@/constants/Colors";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
-import SegmentedControl from "@/components/ui/SegmentedControl";
+import Input from "@/components/custom/Input";
+import Button from "@/components/custom/Button";
+import SegmentedControl from "@/components/custom/SegmentedControl";
 import { useUserStore } from "@/stores/userStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useNotificationStore } from "@/stores/notificationStore";
@@ -95,7 +95,7 @@ export default function LoginScreen() {
 
         try {
             // Test database setup first
-            await testDatabaseSetup();
+            // await testDatabaseSetup();
 
             // Simulate API call
             const success = await login(email, password);

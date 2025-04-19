@@ -20,6 +20,7 @@ export type Transaction = {
     id: string;
     amount: number;
     type: "income" | "expense";
+    currency: string;
     category: string;
     categoryId: string;
     date: Date;

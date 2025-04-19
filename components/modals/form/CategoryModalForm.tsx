@@ -1,8 +1,16 @@
-import Modal from "@/components/ui/Modal";
-import { Button, ButtonText } from "@/components/ui/button/index";
+import {
+    Modal,
+    ModalBackdrop,
+    ModalContent,
+    ModalHeader,
+    ModalCloseButton,
+    ModalBody,
+    ModalFooter,
+} from "@/components/ui/modal";
+import { Button, ButtonText } from "@/components/ui/button";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { Text, TextInput, View, ActivityIndicator } from "react-native";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/custom/Card";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -114,12 +122,12 @@ export default function CategoryModalForm({
     });
 
     // Test database connection when the component mounts
-    useEffect(() => {
-        const testDatabase = async () => {
-            await testDatabaseConnection();
-        };
-        testDatabase();
-    }, []);
+    // useEffect(() => {
+    //     const testDatabase = async () => {
+    //         await testDatabaseConnection();
+    //     };
+    //     testDatabase();
+    // }, []);
 
     useEffect(() => {
         // Reset form with category name or empty string
@@ -147,66 +155,75 @@ export default function CategoryModalForm({
     };
 
     return (
-        <Modal visible={isOpen} onClose={onClose}>
-            <View className="w-[90%] p-4 rounded-xl bg-white">
-                <Text className="text-xl font-bold mb-4 text-center">
-                    {editCategory ? "Edit Category" : "Add New Category"}
-                </Text>
+        <Modal isOpen={isOpen}>
+            <ModalBackdrop />
+            <ModalContent>
+                <View className="w-[90%] p-4 rounded-xl bg-white">
+                    <Text className="text-xl font-bold mb-4 text-center">
+                        {editCategory ? "Edit Category" : "Add New Category"}
+                    </Text>
 
-                <View className="mb-4">
-                    <Text className="mb-1 text-gray-700">Category Name</Text>
-                    <Controller
-                        control={control}
-                        name="name"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                            <TextInput
-                                className="border border-gray-300 rounded-md p-2"
-                                placeholder="Enter category name"
-                                onBlur={onBlur}
-                                onChangeText={onChange}
-                                value={value}
-                                autoFocus
-                                editable={!isLoading}
-                            />
-                        )}
-                    />
-                    {errors.name && (
-                        <Text className="text-red-500 text-sm mt-1">
-                            {errors.name.message}
+                    <View className="mb-4">
+                        <Text className="mb-1 text-gray-700">
+                            Category Name
                         </Text>
-                    )}
-                </View>
-
-                {error && (
-                    <View className="mb-3">
-                        <Text className="text-red-500 text-sm">{error}</Text>
-                    </View>
-                )}
-
-                <View className="flex-row justify-end gap-2 mt-2">
-                    <Button
-                        className="bg-gray-200"
-                        onPress={onClose}
-                        disabled={isLoading}>
-                        <ButtonText className="text-gray-800">
-                            Cancel
-                        </ButtonText>
-                    </Button>
-
-                    <Button
-                        className="bg-[#5D4275]"
-                        onPress={handleSubmit(onSubmit)}
-                        disabled={isLoading || isSubmitting}>
-                        {isLoading ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                            <ButtonText className="text-white">
-                                {editCategory ? "Update" : "Add"}
-                            </ButtonText>
+                        <Controller
+                            control={control}
+                            name="name"
+                            render={({
+                                field: { onChange, onBlur, value },
+                            }) => (
+                                <TextInput
+                                    className="border border-gray-300 rounded-md p-2"
+                                    placeholder="Enter category name"
+                                    onBlur={onBlur}
+                                    onChangeText={onChange}
+                                    value={value}
+                                    autoFocus
+                                    editable={!isLoading}
+                                />
+                            )}
+                        />
+                        {errors.name && (
+                            <Text className="text-red-500 text-sm mt-1">
+                                {errors.name.message}
+                            </Text>
                         )}
-                    </Button>
+                    </View>
+
+                    {error && (
+                        <View className="mb-3">
+                            <Text className="text-red-500 text-sm">
+                                {error}
+                            </Text>
+                        </View>
+                    )}
+
+                    <View className="flex-row justify-end gap-2 mt-2">
+                        <Button
+                            className="bg-gray-200"
+                            onPress={onClose}
+                            disabled={isLoading}>
+                            <ButtonText className="text-gray-800">
+                                Cancel
+                            </ButtonText>
+                        </Button>
+
+                        <Button
+                            className="bg-[#5D4275]"
+                            onPress={handleSubmit(onSubmit)}
+                            disabled={isLoading || isSubmitting}>
+                            {isLoading ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <ButtonText className="text-white">
+                                    {editCategory ? "Update" : "Add"}
+                                </ButtonText>
+                            )}
+                        </Button>
+                    </View>
                 </View>
-            </View>
+            </ModalContent>
         </Modal>
     );
 }

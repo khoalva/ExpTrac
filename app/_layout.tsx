@@ -93,10 +93,7 @@ function RootLayoutNav() {
                     name="budget/new"
                     options={{
                         presentation: "modal",
-                        title: "New Budget",
-                        headerStyle: {
-                            backgroundColor: "#F8F6FB",
-                        },
+                        headerShown: false,
                     }}
                 />
                 <Stack.Screen

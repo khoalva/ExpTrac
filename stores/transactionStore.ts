@@ -81,6 +81,7 @@ export const useTransactionStore = create<TransactionState>()(
                             id: String(transaction.id),
                             amount: transaction.amount,
                             type: transaction.type,
+                            currency: transaction.currency,
                             category: transaction.category,
                             date: new Date(transaction.date),
                             walletId: "1", // Legacy field needed by store
@@ -112,7 +113,7 @@ export const useTransactionStore = create<TransactionState>()(
                     const dbTransaction = {
                         type: transaction.type,
                         amount: transaction.amount,
-                        currency: "vnd", // Default to VND if not specified
+                        currency: transaction.currency,
                         date: transaction.date.toISOString(),
                         wallet: transaction.wallet,
                         category: transaction.category,

@@ -21,7 +21,7 @@ import { useWalletStore } from "@/stores/walletStore";
 import { useUserStore } from "@/stores/userStore";
 import { formatCurrency } from "@/utils/formatters";
 import { colors } from "@/constants/Colors";
-import Avatar from "@/components/ui/Avatar";
+import Avatar from "@/components/custom/Avatar";
 import { useRouter } from "expo-router";
 import { Pencil, Trash } from "lucide-react-native";
 import { db } from "@/service/database";
@@ -146,7 +146,10 @@ export default function WalletScreen() {
                                         {wallet.name}
                                     </Text>
                                     <Text className="text-xl font-bold text-primary mt-2 text-white">
-                                        {formatCurrency(wallet.balance)}
+                                        {formatCurrency(
+                                            wallet.balance,
+                                            wallet.currency
+                                        )}
                                     </Text>
                                 </View>
                                 <View className="flex flex-col justify-start items-start">

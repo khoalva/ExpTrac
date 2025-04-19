@@ -20,10 +20,13 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     onDelete,
     showActions = false,
 }) => {
-    const { type, amount, category, date, nextBillDate } = transaction;
-
+    const { type, amount, category, date, nextBillDate, currency, wallet } =
+        transaction;
+    console.log("TransactionItem", transaction);
     const isIncome = type === "income";
-    const formattedAmount = formatTransactionAmount(amount, type);
+    const formattedAmount = formatTransactionAmount(amount, type, currency);
+    console.log("formattedAmount", formattedAmount);
+
     const formattedDate = formatShortDate(new Date(date));
     const formattedNextBillDate = nextBillDate
         ? formatShortDate(new Date(nextBillDate))
@@ -80,6 +83,9 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
                         </Text>
                         <Text style={styles.categoryText}>
                             Category: {category}
+                        </Text>
+                        <Text style={styles.categoryText}>
+                            Wallet: {wallet}
                         </Text>
                     </View>
                 </View>

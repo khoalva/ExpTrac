@@ -15,7 +15,7 @@ import * as z from "zod";
 export const TransactionSchema = z.object({
     type: z.enum(["expense", "income"]),
     amount: z.number().positive(),
-    currency: z.enum(["vnd", "usd"]),
+    currency: z.string(),
     date: z.union([
         z.string(),
         z.date().transform((date) => date.toISOString()),
@@ -31,7 +31,7 @@ export const TransactionSchema = z.object({
 export interface TransactionFormValues {
     type: "expense" | "income";
     amount: number;
-    currency: "vnd" | "usd";
+    currency: string;
     date: Date;
     wallet: string;
     category: string;
@@ -50,7 +50,7 @@ export interface TransactionFormValues {
 export const BudgetSchema = z.object({
     name: z.string().min(1),
     amount: z.number().positive(),
-    currency: z.enum(["vnd", "usd"]),
+    currency: z.string(),
     wallet: z.string(),
     repeat: z.string(),
 });
@@ -67,7 +67,7 @@ export const BudgetSchema = z.object({
 export const SubscriptionSchema = z.object({
     name: z.string().min(1),
     amount: z.number().positive(),
-    currency: z.enum(["vnd", "usd"]),
+    currency: z.string(),
     billing_date: z.string(),
     repeat: z.string(),
     reminder_before: z.number().positive(),
@@ -83,7 +83,7 @@ export const SubscriptionSchema = z.object({
 export const WalletSchema = z.object({
     name: z.string().min(1),
     init_amount: z.number().positive(),
-    currency: z.enum(["vnd", "usd"]),
+    currency: z.string(),
     visible_category: z.string(),
 });
 

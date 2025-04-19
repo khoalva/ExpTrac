@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/constants/Colors";
 import { useUserStore } from "@/stores/userStore";
 import { useTransactionStore } from "@/stores/transactionStore";
-import Avatar from "@/components/ui/Avatar";
+import Avatar from "@/components/custom/Avatar";
 import TransactionItem from "@/components/cards/TransactionItem";
 import { Search, X, ChevronDown } from "lucide-react-native";
 import { db } from "@/service/database";
@@ -33,24 +33,24 @@ export default function HistoryScreen() {
     const isLoading = useTransactionStore((state) => state.isLoading);
     const error = useTransactionStore((state) => state.error);
 
-    useEffect(() => {
-        const initDatabaseAndLoadTransactions = async () => {
-            try {
-                // Initialize database
-                await db.initDatabase();
+    // useEffect(() => {
+    //     const initDatabaseAndLoadTransactions = async () => {
+    //         try {
+    //             // Initialize database
+    //             await db.initDatabase();
 
-                // Load transactions with a limit of 50
-                await loadTransactions(50);
-            } catch (err) {
-                console.error(
-                    "Error initializing and loading transactions:",
-                    err
-                );
-            }
-        };
+    //             // Load transactions with a limit of 50
+    //             await loadTransactions(50);
+    //         } catch (err) {
+    //             console.error(
+    //                 "Error initializing and loading transactions:",
+    //                 err
+    //             );
+    //         }
+    //     };
 
-        initDatabaseAndLoadTransactions();
-    }, [loadTransactions]);
+    //     initDatabaseAndLoadTransactions();
+    // }, [loadTransactions]);
 
     const handleEditTransaction = (id: string) => {
         // Navigate to edit screen

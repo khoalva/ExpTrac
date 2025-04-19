@@ -8,7 +8,7 @@ import { useUserStore } from "@/stores/userStore";
 import { useTransactionStore } from "@/stores/transactionStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useNotificationStore } from "@/stores/notificationStore";
-import Avatar from "@/components/ui/Avatar";
+import Avatar from "@/components/custom/Avatar";
 import { formatCurrency } from "@/utils/formatters";
 import {
     Bell,
@@ -20,8 +20,8 @@ import {
     FileSpreadsheet,
     LightbulbIcon,
 } from "lucide-react-native";
-import Modal from "@/components/ui/Modal";
-import Button from "@/components/ui/Button";
+import Modal from "@/components/custom/Modal";
+import Button from "@/components/custom/Button";
 
 export default function HomeScreen() {
     const router = useRouter();

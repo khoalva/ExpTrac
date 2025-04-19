@@ -16,10 +16,10 @@ import { useUserStore } from "@/stores/userStore";
 import { useTransactionStore } from "@/stores/transactionStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useWalletStore } from "@/stores/walletStore";
-import Avatar from "@/components/ui/Avatar";
-import Button from "@/components/ui/Button";
-import SegmentedControl from "@/components/ui/SegmentedControl";
-import Input from "@/components/ui/Input";
+import Avatar from "@/components/custom/Avatar";
+import Button from "@/components/custom/Button";
+import SegmentedControl from "@/components/custom/SegmentedControl";
+import Input from "@/components/custom/Input";
 import SuccessModal from "@/components/modals/SuccessModal";
 import { ChevronDown, ChevronRight, Calendar, Plus } from "lucide-react-native";
 import { TransactionSchema } from "@/libs/validation";
@@ -45,6 +45,7 @@ import { db } from "@/service/database";
 import { transactionService } from "@/service/TransactionService";
 import { walletService } from "@/service/WalletService";
 import { categoryService } from "@/service/CategoryService";
+import { currencies } from "@/constants/currencies";
 
 // would later use zustand to store the latest screen before this screen, to navigate back to when back button is pressed
 type TransactionScreenProps = {
@@ -150,7 +151,7 @@ export default function NewTransactionScreen({
         defaultValues: {
             type: "expense",
             amount: 0,
-            currency: "vnd",
+            currency: "",
             date: new Date().toISOString(),
             wallet: selectedWallet || "",
             category: "",
@@ -170,9 +171,8 @@ export default function NewTransactionScreen({
             if (wallet) {
                 // Convert the currency string to the expected type
                 const currency = wallet.currency.toLowerCase();
-                if (currency === "vnd" || currency === "usd") {
-                    setValue("currency", currency);
-                }
+                console.log("Currency from wallet:", currency);
+                setValue("currency", currency);
             }
         }
     }, [watchedWallet, wallets, setValue]);
@@ -195,6 +195,7 @@ export default function NewTransactionScreen({
             const storeTransaction = {
                 id: "", // This will be assigned by the store/service
                 amount: data.amount,
+                currency: data.currency,
                 type: data.type,
                 category: data.category,
                 date: new Date(data.date),
@@ -318,9 +319,7 @@ export default function NewTransactionScreen({
                                 render={({ field: { onChange, value } }) => (
                                     <Select
                                         selectedValue={value}
-                                        onValueChange={onChange}
-                                        isDisabled={true} // Currency is derived from wallet
-                                    >
+                                        onValueChange={onChange}>
                                         <SelectTrigger
                                             variant="outline"
                                             className="w-full h-fit rounded-xl bg-white flex justify-between items-center px-4"
@@ -340,14 +339,13 @@ export default function NewTransactionScreen({
                                                 <SelectDragIndicatorWrapper>
                                                     <SelectDragIndicator />
                                                 </SelectDragIndicatorWrapper>
-                                                <SelectItem
-                                                    label="VND"
-                                                    value="vnd"
-                                                />
-                                                <SelectItem
-                                                    label="USD"
-                                                    value="usd"
-                                                />
+                                                {currencies.map((currency) => (
+                                                    <SelectItem
+                                                        key={currency.code}
+                                                        label={currency.name}
+                                                        value={currency.code}
+                                                    />
+                                                ))}
                                             </SelectContent>
                                         </SelectPortal>
                                     </Select>

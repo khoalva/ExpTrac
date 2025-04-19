@@ -18,7 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { WalletSchema } from "@/libs/validation";
 import { Wallpaper } from "lucide-react-native";
 import { db } from "@/service/database";
-import Button from "@/components/ui/Button";
+import Button from "@/components/custom/Button";
 import { useWalletStore } from "@/stores/walletStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import {
@@ -34,6 +34,7 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
+import { currencies } from "@/constants/currencies";
 
 export default function NewWalletScreen() {
     const router = useRouter();
@@ -56,7 +57,7 @@ export default function NewWalletScreen() {
         watch,
         formState: { errors },
     } = useForm<z.infer<typeof WalletSchema>>({
-        resolver: zodResolver(WalletSchema),
+        resolver: zodResolver(WalletSchema) as any,
         defaultValues: {
             name: "",
             init_amount: 0,
@@ -219,14 +220,13 @@ export default function NewWalletScreen() {
                                             <SelectDragIndicatorWrapper>
                                                 <SelectDragIndicator />
                                             </SelectDragIndicatorWrapper>
-                                            <SelectItem
-                                                label="VND"
-                                                value="vnd"
-                                            />
-                                            <SelectItem
-                                                label="USD"
-                                                value="usd"
-                                            />
+                                            {currencies.map((currency) => (
+                                                <SelectItem
+                                                    key={currency.code}
+                                                    label={currency.name}
+                                                    value={currency.code}
+                                                />
+                                            ))}
                                         </SelectContent>
                                     </SelectPortal>
                                 </Select>
