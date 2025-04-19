@@ -11,7 +11,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/Colors";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,18 +29,21 @@ import {
     SelectPortal,
     SelectBackdrop,
     SelectContent,
-    SelectDragIndicator,
     SelectDragIndicatorWrapper,
+    SelectDragIndicator,
     SelectItem,
 } from "@/components/ui/select";
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 import { currencies } from "@/constants/currencies";
+import { Wallet } from "@/types";
 
-export default function NewWalletScreen() {
+export default function EditWalletScreen() {
     const router = useRouter();
+    const { id } = useLocalSearchParams<{ id: string }>();
 
     // Wallet store
-    const addWallet = useWalletStore((state) => state.addWallet);
+    const wallets = useWalletStore((state) => state.wallets);
+    const updateWallet = useWalletStore((state) => state.updateWallet);
     const isWalletLoading = useWalletStore((state) => state.isLoading);
     const walletError = useWalletStore((state) => state.error);
 
@@ -49,6 +52,7 @@ export default function NewWalletScreen() {
     const isCategoriesLoading = useCategoryStore((state) => state.isLoading);
 
     const [formSubmitting, setFormSubmitting] = useState(false);
+    const [currentWallet, setCurrentWallet] = useState<Wallet>();
 
     const {
         control,
@@ -67,38 +71,57 @@ export default function NewWalletScreen() {
         },
     });
 
+    // Find and load the current wallet data when the component mounts
+    useEffect(() => {
+        if (id && wallets.length > 0) {
+            const wallet = wallets.find((w) => w.id === id);
+            if (wallet) {
+                setCurrentWallet(wallet);
+                // Initialize form with wallet data
+                setValue("name", wallet.name);
+                setValue("init_amount", wallet.init_amount);
+                setValue("currency", wallet.currency || "vnd");
+                setValue("visible_category", wallet.visible_category || "");
+            } else {
+                // Handle case where wallet is not found
+                console.error("Wallet not found with ID:", id);
+                router.push("/(tabs)/wallet");
+            }
+        }
+    }, [id, wallets, setValue]);
+
     const onSubmit = async (data: z.infer<typeof WalletSchema>) => {
-        console.log("Form data:", data);
+        if (!id) return;
 
         try {
             setFormSubmitting(true);
 
             // Convert to wallet format for store
             const walletData = {
+                id,
                 name: data.name,
                 init_amount: data.init_amount,
                 currency: data.currency,
-                visible_category: data.visible_category || "",
+                visible_category: data.visible_category,
             };
 
-            // Add wallet through store (which updates database)
-            const result = await addWallet(walletData);
-
-            if (result) {
-                // Navigate back to wallet list on success
-                // reset the form
-                reset();
+            // Update wallet through store
+            await updateWallet(id, walletData).then(() => {
                 router.push("/(tabs)/wallet");
-            }
+            });
         } catch (err) {
-            console.error("Error creating wallet:", err);
+            console.error("Error updating wallet:", err);
         } finally {
             setFormSubmitting(false);
         }
     };
 
     // Combined loading state
-    const isLoading = isWalletLoading || isCategoriesLoading || formSubmitting;
+    const isLoading =
+        isWalletLoading ||
+        isCategoriesLoading ||
+        formSubmitting ||
+        !currentWallet;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -116,7 +139,7 @@ export default function NewWalletScreen() {
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>New Wallet</Text>
+                <Text style={styles.title}>Edit Wallet</Text>
                 <View className="">
                     <View>
                         <Controller
@@ -318,7 +341,7 @@ export default function NewWalletScreen() {
                 )}
 
                 <Button
-                    title={isLoading ? "Creating..." : "Create Wallet"}
+                    title={isLoading ? "Updating..." : "Update Wallet"}
                     onPress={handleSubmit(onSubmit)}
                     style={styles.addButton}
                     loading={isLoading}

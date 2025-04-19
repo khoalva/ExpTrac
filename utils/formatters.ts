@@ -32,7 +32,6 @@ export const formatCurrency = (
     amount: number,
     currencyCode: string = "VND"
 ): string => {
-    console.log("currencyCode", currencyCode);
     const currency = getCurrencyByCode(currencyCode);
 
     // Format with thousand separators

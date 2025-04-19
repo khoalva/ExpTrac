@@ -56,9 +56,8 @@ export default function WalletScreen() {
     }, [loadWallets]);
 
     const handleEditWallet = (walletId: string) => {
-        // Navigate to edit wallet screen
-        // For now, just navigate to new wallet screen
-        router.push("/(tabs)/wallet/new");
+        // Navigate to edit wallet screen with the wallet ID
+        router.push(`/(tabs)/wallet/edit?id=${walletId}`);
     };
 
     const handleDeleteWallet = async (walletId: string) => {
@@ -95,7 +94,8 @@ export default function WalletScreen() {
                             <Text className="text-2xl font-bold text-white">
                                 {formatCurrency(
                                     wallets.reduce(
-                                        (sum, wallet) => sum + wallet.balance,
+                                        (sum, wallet) =>
+                                            sum + wallet.init_amount,
                                         0
                                     )
                                 )}
@@ -147,7 +147,7 @@ export default function WalletScreen() {
                                     </Text>
                                     <Text className="text-xl font-bold text-primary mt-2 text-white">
                                         {formatCurrency(
-                                            wallet.balance,
+                                            wallet.init_amount,
                                             wallet.currency
                                         )}
                                     </Text>

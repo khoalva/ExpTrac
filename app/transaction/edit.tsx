@@ -7,26 +7,24 @@ import {
     TouchableOpacity,
     TextInput,
     ActivityIndicator,
+    Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, Link } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors } from "@/constants/Colors";
 import { useUserStore } from "@/stores/userStore";
 import { useTransactionStore } from "@/stores/transactionStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useWalletStore } from "@/stores/walletStore";
-import Avatar from "@/components/custom/Avatar";
 import Button from "@/components/custom/Button";
 import SegmentedControl from "@/components/custom/SegmentedControl";
-import Input from "@/components/custom/Input";
 import SuccessModal from "@/components/modals/SuccessModal";
-import { ChevronDown, ChevronRight, Calendar, Plus } from "lucide-react-native";
+import { ChevronDown, Calendar } from "lucide-react-native";
 import { TransactionSchema } from "@/libs/validation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { TransactionType } from "@/types";
 import {
     Select,
     SelectTrigger,
@@ -41,16 +39,9 @@ import {
 } from "@/components/ui/select";
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import { db } from "@/service/database";
-import { transactionService } from "@/service/TransactionService";
-import { walletService } from "@/service/WalletService";
-import { categoryService } from "@/service/CategoryService";
 import { currencies } from "@/constants/currencies";
-
-// would later use zustand to store the latest screen before this screen, to navigate back to when back button is pressed
-type TransactionScreenProps = {
-    callBackScreen?: string;
-};
+import { Transaction } from "@/types";
+import { set } from "date-fns";
 
 const repeats = [
     { name: "None" },
@@ -59,14 +50,18 @@ const repeats = [
     { name: "Yearly" },
 ];
 
-export default function NewTransactionScreen({
-    callBackScreen,
-}: TransactionScreenProps) {
+export default function EditTransactionScreen() {
     const router = useRouter();
-    const user = useUserStore((state) => state.user);
+    const { id } = useLocalSearchParams<{ id: string }>();
 
     // Transaction store
-    const addTransaction = useTransactionStore((state) => state.addTransaction);
+    const transactions = useTransactionStore((state) => state.transactions);
+    const getTransaction = useTransactionStore(
+        (state) => state.loadTransactions
+    );
+    const updateTransaction = useTransactionStore(
+        (state) => state.updateTransaction
+    );
     const isTransactionLoading = useTransactionStore(
         (state) => state.isLoading
     );
@@ -78,7 +73,6 @@ export default function NewTransactionScreen({
 
     // Wallet store
     const walletsFromStore = useWalletStore((state) => state.wallets);
-    const selectedWalletId = useWalletStore((state) => state.selectedWalletId);
     const isWalletsLoading = useWalletStore((state) => state.isLoading);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -88,57 +82,7 @@ export default function NewTransactionScreen({
         { name: string; currency: string }[]
     >([]);
     const [categories, setCategories] = useState<{ name: string }[]>([]);
-    const [isLoadingOptions, setIsLoadingOptions] = useState(false);
-
-    // Load wallets and categories when component mounts
-    useEffect(() => {
-        const loadOptions = async () => {
-            try {
-                setIsLoadingOptions(true);
-
-                // Initialize database
-                await db.initDatabase();
-
-                // Either use service directly or store data depending on which is populated
-                if (walletsFromStore.length > 0) {
-                    setWallets(
-                        walletsFromStore.map((wallet) => ({
-                            name: wallet.name,
-                            currency: wallet.currency,
-                        }))
-                    );
-                } else {
-                    const dbWallets = await walletService.getAllWallets();
-                    setWallets(
-                        dbWallets.map((wallet) => ({
-                            name: wallet.name,
-                            currency: wallet.currency,
-                        }))
-                    );
-                }
-
-                if (categoriesFromStore.length > 0) {
-                    setCategories(categoriesFromStore);
-                } else {
-                    const dbCategories =
-                        await categoryService.getAllCategories();
-                    setCategories(dbCategories);
-                }
-            } catch (error) {
-                console.error("Error loading options:", error);
-                setError("Failed to load wallets and categories");
-            } finally {
-                setIsLoadingOptions(false);
-            }
-        };
-
-        loadOptions();
-    }, [walletsFromStore, categoriesFromStore]);
-
-    // Find selected wallet name from store if available
-    const selectedWallet = selectedWalletId
-        ? walletsFromStore.find((w) => w.id === selectedWalletId)?.name || ""
-        : "";
+    const [currentTransaction, setCurrentTransaction] = useState<Transaction>();
 
     const {
         control,
@@ -146,6 +90,7 @@ export default function NewTransactionScreen({
         setValue,
         watch,
         formState: { errors },
+        reset,
     } = useForm<z.infer<typeof TransactionSchema>>({
         resolver: zodResolver(TransactionSchema) as any,
         defaultValues: {
@@ -153,9 +98,9 @@ export default function NewTransactionScreen({
             amount: 0,
             currency: "",
             date: new Date().toISOString(),
-            wallet: selectedWallet || "",
+            wallet: "",
             category: "",
-            repeat: "",
+            repeat: "None",
             note: "",
             picture: "",
         },
@@ -164,15 +109,74 @@ export default function NewTransactionScreen({
     const transactionType = watch("type");
     const watchedWallet = watch("wallet");
 
+    // Load transaction data
+    useEffect(() => {
+        const loadTransaction = async () => {
+            if (id) {
+                try {
+                    setIsLoading(true);
+
+                    // First try to find transaction in store
+                    let transaction = transactions.find((t) => t.id === id);
+
+                    if (transaction) {
+                        setCurrentTransaction(transaction);
+
+                        // Initialize form with transaction data
+                        setValue("type", transaction.type);
+                        setValue("amount", transaction.amount);
+                        setValue("currency", transaction.currency || "");
+                        setValue(
+                            "date",
+                            transaction.date
+                                ? new Date(transaction.date).toISOString()
+                                : new Date().toISOString()
+                        );
+                        setValue("wallet", transaction.wallet || "");
+                        setValue("category", transaction.category || "");
+                        setValue(
+                            "repeat",
+                            transaction.isRecurring ? "Monthly" : "None"
+                        ); // Default to Monthly if recurring
+                        setValue("note", transaction.note || "");
+                    } else {
+                        setError("Transaction not found");
+                    }
+                } catch (err) {
+                    console.error("Error loading transaction:", err);
+                    setError("Failed to load transaction data");
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadTransaction();
+    }, [id, transactions, getTransaction, setValue]);
+
+    // Load wallets and categories
+    useEffect(() => {
+        // Update wallet and category options
+        if (walletsFromStore.length > 0) {
+            setWallets(
+                walletsFromStore.map((wallet) => ({
+                    name: wallet.name,
+                    currency: wallet.currency,
+                }))
+            );
+        }
+
+        if (categoriesFromStore.length > 0) {
+            setCategories(categoriesFromStore);
+        }
+    }, [walletsFromStore, categoriesFromStore]);
+
     // Update currency when wallet changes
     useEffect(() => {
         if (watchedWallet) {
             const wallet = wallets.find((w) => w.name === watchedWallet);
             if (wallet) {
-                // Convert the currency string to the expected type
-                const currency = wallet.currency.toLowerCase();
-                console.log("Currency from wallet:", currency);
-                setValue("currency", currency);
+                setValue("currency", wallet.currency.toLowerCase());
             }
         }
     }, [watchedWallet, wallets, setValue]);
@@ -180,47 +184,42 @@ export default function NewTransactionScreen({
     // Combined loading state
     const combinedLoadingState =
         isLoading ||
-        isLoadingOptions ||
         isTransactionLoading ||
         isCategoriesLoading ||
         isWalletsLoading;
 
     const onSubmit = async (data: z.infer<typeof TransactionSchema>) => {
+        if (!id || !currentTransaction) {
+            setError("Transaction data is missing");
+            return;
+        }
+
         try {
             setIsLoading(true);
             setError("");
-            console.log("Form data:", data);
 
-            // Create transaction object for store (no need to create separately in database)
-            const storeTransaction = {
-                id: "", // This will be assigned by the store/service
+            // Create transaction object for update
+            const updatedTransaction = {
+                ...currentTransaction,
+                id,
                 amount: data.amount,
                 currency: data.currency,
                 type: data.type,
                 category: data.category,
                 date: new Date(data.date),
-                walletId: selectedWalletId || "1", // Use selected wallet ID if available
                 wallet: data.wallet,
-                categoryId: "1", // Legacy field needed by store
                 isRecurring:
                     data.repeat !== "None" && data.repeat !== undefined,
                 note: data.note || "",
             };
 
-            // Add transaction to store - this will also save to the database
-            const transactionId = await addTransaction(storeTransaction);
-
-            if (!transactionId) {
-                throw new Error("Failed to create transaction");
-            }
-
-            console.log(`Transaction created with ID: ${transactionId}`);
-
-            // Show success modal
-            setShowSuccessModal(true);
+            // Update transaction through store
+            updateTransaction(id, updatedTransaction).then(() => {
+                setShowSuccessModal(true);
+            });
         } catch (error) {
-            console.error("Error creating transaction:", error);
-            setError("Failed to create transaction. Please try again.");
+            console.error("Error updating transaction:", error);
+            setError("Failed to update transaction. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -228,7 +227,8 @@ export default function NewTransactionScreen({
 
     const handleSuccessModalClose = () => {
         setShowSuccessModal(false);
-        router.push("/history");
+        // Navigate back to transaction detail
+        router.push(`/transaction/${id}`);
     };
 
     return (
@@ -238,12 +238,12 @@ export default function NewTransactionScreen({
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
-                    onPress={() => router.push("/(tabs)")}>
+                    onPress={() => router.back()}>
                     <Text style={styles.backButtonText}>Back</Text>
                 </TouchableOpacity>
             </View>
 
-            {combinedLoadingState && isLoadingOptions ? (
+            {combinedLoadingState ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.loadingText}>Loading...</Text>
@@ -253,7 +253,7 @@ export default function NewTransactionScreen({
                     style={styles.scrollView}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}>
-                    <Text style={styles.title}>New Transaction</Text>
+                    <Text style={styles.title}>Edit Transaction</Text>
 
                     <View style={styles.formSection}>
                         <Text style={styles.sectionLabel}>Type</Text>
@@ -327,7 +327,11 @@ export default function NewTransactionScreen({
                                             <SelectInput
                                                 placeholder="Select Currency"
                                                 className="text-lg"
-                                                value={value.toUpperCase()}
+                                                value={
+                                                    value
+                                                        ? value.toUpperCase()
+                                                        : ""
+                                                }
                                             />
                                             <SelectIcon
                                                 className=""
@@ -385,10 +389,7 @@ export default function NewTransactionScreen({
                                     <Text style={styles.selectButtonText}>
                                         {new Date(value).toLocaleDateString()}
                                     </Text>
-                                    <ChevronDown
-                                        size={16}
-                                        color={colors.text}
-                                    />
+                                    <Calendar size={16} color={colors.text} />
                                 </TouchableOpacity>
                             )}
                         />
@@ -463,19 +464,6 @@ export default function NewTransactionScreen({
                                 </Select>
                             )}
                         />
-                        {wallets.length === 0 && !isWalletsLoading && (
-                            <Link href="/wallet/new" asChild>
-                                <TouchableOpacity>
-                                    <Text
-                                        style={{
-                                            color: colors.primary,
-                                            marginTop: 8,
-                                        }}>
-                                        + Create a wallet first
-                                    </Text>
-                                </TouchableOpacity>
-                            </Link>
-                        )}
                         {errors.wallet && (
                             <Text style={styles.errorText}>
                                 {errors.wallet.message}
@@ -626,19 +614,6 @@ export default function NewTransactionScreen({
                         )}
                     </View>
 
-                    <View style={styles.formSection}>
-                        <Text style={styles.sectionLabel}>Add a picture</Text>
-                        <TouchableOpacity
-                            style={styles.addPictureButton}
-                            disabled={combinedLoadingState}
-                            onPress={() => {
-                                // This would open the image picker
-                                // and update the form value with the selected image
-                            }}>
-                            <Plus size={24} color="white" />
-                        </TouchableOpacity>
-                    </View>
-
                     {(error || transactionError) && (
                         <View style={{ marginBottom: 12 }}>
                             <Text style={styles.errorText}>
@@ -650,11 +625,11 @@ export default function NewTransactionScreen({
                     <Button
                         title={
                             combinedLoadingState
-                                ? "Adding..."
-                                : "Add Transaction"
+                                ? "Updating..."
+                                : "Update Transaction"
                         }
                         onPress={handleSubmit(onSubmit)}
-                        style={styles.addButton}
+                        style={styles.updateButton}
                         loading={combinedLoadingState}
                         disabled={combinedLoadingState}
                     />
@@ -664,14 +639,13 @@ export default function NewTransactionScreen({
             <SuccessModal
                 visible={showSuccessModal}
                 onClose={handleSuccessModalClose}
-                message="You have ADD A TRANSACTION successfully. You can view your transaction in transaction history"
+                message="Transaction updated successfully!"
             />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    // ...existing code...
     errorText: {
         color: "red",
         fontSize: 12,
@@ -781,15 +755,7 @@ const styles = StyleSheet.create({
         minHeight: 80,
         textAlignVertical: "top",
     },
-    addPictureButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 12,
-        backgroundColor: colors.primary,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    addButton: {
+    updateButton: {
         marginTop: 16,
         marginBottom: 32,
     },

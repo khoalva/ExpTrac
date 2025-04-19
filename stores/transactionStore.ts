@@ -191,6 +191,8 @@ export const useTransactionStore = create<TransactionState>()(
                     }
                     if (transaction.note !== undefined)
                         dbTransaction.note = transaction.note;
+                    if (transaction.currency !== undefined)
+                        dbTransaction.picture = transaction.currency;
 
                     // Update in database
                     await transactionService.updateTransaction(

@@ -1,11 +1,5 @@
 import { db } from "./database";
-
-interface Wallet {
-    name: string;
-    init_amount: number;
-    currency: string;
-    visible_category?: string;
-}
+import { Wallet } from "@/types";
 
 class WalletService {
     private static instance: WalletService;
@@ -19,7 +13,7 @@ class WalletService {
         return WalletService.instance;
     }
 
-    public async createWallet(wallet: Wallet): Promise<boolean> {
+    public async createWallet(wallet: Omit<Wallet, "id">): Promise<boolean> {
         try {
             await db.executeParameterizedQuery(
                 `INSERT INTO wallet (

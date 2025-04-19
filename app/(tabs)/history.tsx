@@ -17,9 +17,11 @@ import Avatar from "@/components/custom/Avatar";
 import TransactionItem from "@/components/cards/TransactionItem";
 import { Search, X, ChevronDown } from "lucide-react-native";
 import { db } from "@/service/database";
+import { useRouter } from "expo-router";
 
 export default function HistoryScreen() {
     const user = useUserStore((state) => state.user);
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
 
     // Use transaction store
@@ -54,7 +56,12 @@ export default function HistoryScreen() {
 
     const handleEditTransaction = (id: string) => {
         // Navigate to edit screen
-        console.log(`Edit transaction ${id}`);
+        router.push(`/transaction/edit?id=${id}`);
+    };
+
+    const handleViewTransaction = (id: string) => {
+        // Navigate to transaction detail view
+        router.push(`/transaction/${id}`);
     };
 
     const handleDeleteTransaction = async (id: string) => {
@@ -176,7 +183,7 @@ export default function HistoryScreen() {
                                 key={transaction.id}
                                 transaction={transaction}
                                 onPress={() =>
-                                    handleEditTransaction(transaction.id)
+                                    handleViewTransaction(transaction.id)
                                 }
                                 onEdit={() =>
                                     handleEditTransaction(transaction.id)

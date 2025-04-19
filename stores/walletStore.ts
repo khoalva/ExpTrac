@@ -57,8 +57,9 @@ export const useWalletStore = create<WalletState>()(
                         wallets.push({
                             id: dbWallet.name, // Use name as id
                             name: dbWallet.name,
-                            balance: balance,
+                            init_amount: balance,
                             currency: dbWallet.currency,
+                            visible_category: dbWallet.visible_category,
                         });
                     }
 
@@ -104,7 +105,7 @@ export const useWalletStore = create<WalletState>()(
                     // Format for database
                     const dbWallet = {
                         name: wallet.name,
-                        init_amount: wallet.balance,
+                        init_amount: wallet.init_amount,
                         currency: wallet.currency,
                         visible_category: "",
                     };
@@ -155,9 +156,11 @@ export const useWalletStore = create<WalletState>()(
                     }> = {};
 
                     if (wallet.name) dbWallet.name = wallet.name;
-                    if (wallet.balance !== undefined)
-                        dbWallet.init_amount = wallet.balance;
+                    if (wallet.init_amount !== undefined)
+                        dbWallet.init_amount = wallet.init_amount;
                     if (wallet.currency) dbWallet.currency = wallet.currency;
+                    if (wallet.visible_category)
+                        dbWallet.visible_category = wallet.visible_category;
 
                     // Update in database
                     await walletService.updateWallet(
@@ -256,7 +259,7 @@ export const useWalletStore = create<WalletState>()(
                 } catch (error) {
                     console.error("Error calculating total balance:", error);
                     return get().wallets.reduce(
-                        (sum, wallet) => sum + wallet.balance,
+                        (sum, wallet) => sum + wallet.init_amount,
                         0
                     );
                 }
@@ -273,14 +276,15 @@ export const useWalletStore = create<WalletState>()(
                     if (dbWallets.length === 0) {
                         const defaultWallet: Omit<Wallet, "id"> = {
                             name: "My Wallet",
-                            balance: 1500000,
+                            init_amount: 1500000,
                             currency: "VND",
+                            visible_category: "default",
                         };
 
                         // Add to database
                         await walletService.createWallet({
                             name: defaultWallet.name,
-                            init_amount: defaultWallet.balance,
+                            init_amount: defaultWallet.init_amount,
                             currency: defaultWallet.currency,
                             visible_category: "",
                         });

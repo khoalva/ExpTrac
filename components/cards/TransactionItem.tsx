@@ -22,10 +22,8 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 }) => {
     const { type, amount, category, date, nextBillDate, currency, wallet } =
         transaction;
-    console.log("TransactionItem", transaction);
     const isIncome = type === "income";
     const formattedAmount = formatTransactionAmount(amount, type, currency);
-    console.log("formattedAmount", formattedAmount);
 
     const formattedDate = formatShortDate(new Date(date));
     const formattedNextBillDate = nextBillDate

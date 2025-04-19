@@ -99,6 +99,13 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="wallet/edit"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="subscription/index"
                 options={{
                     headerShown: false,

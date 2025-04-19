@@ -8,8 +8,9 @@ export type User = {
 export type Wallet = {
     id: string;
     name: string;
-    balance: number;
+    init_amount: number;
     currency: string;
+    visible_category: string;
 };
 
 export type Category = {
