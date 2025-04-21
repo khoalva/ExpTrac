@@ -79,3 +79,15 @@ export type ChartData = {
 };
 
 export type TransactionType = "income" | "expense";
+
+export type Subscription = {
+    id: string;
+    name: string;
+    amount: number;
+    currency: string;
+    repeat: string;
+    billing_date: Date;
+    reminder_before?: number; // in days
+    category?: string; // optional
+};
+

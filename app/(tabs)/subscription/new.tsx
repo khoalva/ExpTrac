@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, Modal, FlatList } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import Avatar from '@/components/ui/Avartar';
 import { Button } from '@/components/ui/button';
 import SuccessModal from '@/components/modals/SuccessModal';
 import { ChevronDown, ChevronRight, ArrowLeft } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function NewSubscriptionScreen() {
   const router = useRouter();
@@ -22,7 +23,57 @@ export default function NewSubscriptionScreen() {
   const [reminder, setReminder] = useState('');
   const [category, setCategory] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [showRepeatPicker, setShowRepeatPicker] = useState(false);
   
+  // Add these new states for date picker
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
+  
+    // Date picker handlers
+  const onDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || tempDate;
+    setShowDatePicker(Platform.OS === 'ios');
+    setTempDate(currentDate);
+    
+    if (event.type === 'set' || Platform.OS === 'ios') {
+      // Format date as DD/MM/YYYY
+      const day = currentDate.getDate().toString().padStart(2, '0');
+      const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+      const year = currentDate.getFullYear();
+      setBillingDate(`${day}/${month}/${year}`);
+    }
+  };
+
+  // Currency options
+  const currencies = [
+    { code: 'VND', name: 'Vietnamese Dong' },
+    { code: 'USD', name: 'US Dollar' },
+    { code: 'EUR', name: 'Euro' },
+    { code: 'GBP', name: 'British Pound' },
+    { code: 'JPY', name: 'Japanese Yen' },
+    { code: 'CNY', name: 'Chinese Yuan' },
+  ];
+
+  const repeatOptions = [
+    { id: 'once', label: 'Once' },
+    { id: 'daily', label: 'Daily' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'yearly', label: 'Yearly' },
+  ];
+
+  // Currency selection handler
+  const handleCurrencySelect = (selectedCurrency) => {
+    setCurrency(selectedCurrency.code);
+    setShowCurrencyPicker(false);
+  };
+
+  const handleRepeatSelect = (selectedRepeat) => {
+    setRepeat(selectedRepeat.label);
+    setShowRepeatPicker(false);
+  };
+
   const handleAddSubscription = () => {
     // Validate inputs
     if (!name || !amount) {
@@ -108,7 +159,10 @@ export default function NewSubscriptionScreen() {
           
           <View style={[styles.formColumn, styles.currencyColumn]}>
             <Text style={styles.label}>Currency</Text>
-            <TouchableOpacity style={styles.selectButton}>
+            <TouchableOpacity 
+              style={styles.selectButton}
+              onPress={() => setShowCurrencyPicker(true)}
+            >
               <Text style={styles.selectButtonText}>{currency}</Text>
               <ChevronDown size={20} color={colors.text} />
             </TouchableOpacity>
@@ -121,10 +175,22 @@ export default function NewSubscriptionScreen() {
           </View>
           
           <View style={styles.inputColumn}>
-            <TouchableOpacity style={styles.selectButton}>
-              <Text style={styles.selectButtonText}>Pick date</Text>
+            <TouchableOpacity style={styles.selectButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={billingDate ? styles.selectButtonTextSelected : styles.selectButtonText}>
+                {billingDate || "Pick date"}
+              </Text>
               <ChevronDown size={20} color={colors.text} />
             </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDateChange}
+              />
+            )}
           </View>
         </View>
         
@@ -134,8 +200,13 @@ export default function NewSubscriptionScreen() {
           </View>
           
           <View style={styles.inputColumn}>
-            <TouchableOpacity style={styles.selectButton}>
-              <Text style={styles.selectButtonText}>Repeat</Text>
+            <TouchableOpacity 
+              style={styles.selectButton}
+              onPress={() => setShowRepeatPicker(true)}
+            >
+              <Text style={repeat ? styles.selectButtonTextSelected : styles.selectButtonText}>
+                {repeat || "Repeat"}
+              </Text>
               <ChevronDown size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -154,7 +225,7 @@ export default function NewSubscriptionScreen() {
           </View>
         </View>
         
-        <View style={styles.formRow}>
+        <View style={styles.formRow}>``
           <View style={styles.labelColumn}>
             <Text style={styles.label}>Category</Text>
           </View>
@@ -173,7 +244,90 @@ export default function NewSubscriptionScreen() {
           style={styles.addButton}
         />
       </ScrollView>
-      
+       {/* Currency Selection Modal */}
+       <Modal
+        visible={showCurrencyPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCurrencyPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Currency</Text>
+              <TouchableOpacity onPress={() => setShowCurrencyPicker(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={currencies}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.currencyItem,
+                    currency === item.code && styles.selectedCurrencyItem
+                  ]}
+                  onPress={() => handleCurrencySelect(item)}
+                >
+                  <Text style={[
+                    styles.currencyCode, 
+                    currency === item.code && styles.selectedCurrencyText
+                  ]}>
+                    {item.code}
+                  </Text>
+                  <Text style={[
+                    styles.currencyName,
+                    currency === item.code && styles.selectedCurrencyText
+                  ]}>
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+      {/* Repeat Selection Modal */}
+      <Modal
+        visible={showRepeatPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowRepeatPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Repeat</Text>
+              <TouchableOpacity onPress={() => setShowRepeatPicker(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={repeatOptions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.optionItem,
+                    repeat === item.label && styles.selectedOptionItem
+                  ]}
+                  onPress={() => handleRepeatSelect(item)}
+                >
+                  <Text style={[
+                    styles.optionText, 
+                    repeat === item.label && styles.selectedOptionText
+                  ]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
       <SuccessModal
         visible={showSuccessModal}
         onClose={handleSuccessModalClose}
@@ -218,6 +372,14 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  selectButtonText: {
+    fontSize: 16,
+    color: colors.textTertiary,
+  },
+  selectButtonTextSelected: {
+    fontSize: 16,
+    color: colors.text,
   },
   notificationIcon: {
     fontSize: 24,
@@ -296,14 +458,81 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  selectButtonText: {
-    fontSize: 16,
-    color: colors.textTertiary,
-  },
   addButton: {
     marginTop: 20,
     backgroundColor: colors.primaryDark,
     borderRadius: 16,
     paddingVertical: 16,
+  },
+  // Add new styles for currency modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  closeButton: {
+    fontSize: 20,
+    color: colors.textSecondary,
+    padding: 4,
+  },
+  currencyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedCurrencyItem: {
+    backgroundColor: colors.primaryLight,
+  },
+  currencyCode: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    width: 60,
+  },
+  currencyName: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  selectedCurrencyText: {
+    color: colors.primaryDark,
+  },
+  // Add these styles if they don't already exist
+  optionItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedOptionItem: {
+    backgroundColor: colors.primaryLight,
+  },
+  optionText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  selectedOptionText: {
+    color: colors.primaryDark,
+    fontWeight: 'bold',
   },
 });

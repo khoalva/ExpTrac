@@ -1,13 +1,6 @@
 import { db } from './database';
+import { Subscription } from '@/types';
 
-interface Subscription {
-    id?: string;
-    name: string;
-    amount: number;
-    frequency: string;
-    billing_date: string;
-    reminder: string;
-}
 
 class SubscriptionService {
     private static instance: SubscriptionService;
@@ -22,20 +15,21 @@ class SubscriptionService {
     }
 
     public async createSubscription(
-        subscription: Omit<Subscription, 'id'>
+        subscription: Subscription
     ): Promise<string> {
         try {
             const id = Math.random().toString(36).substr(2, 9); // Tạo ID ngẫu nhiên
             await db.runAsync(
-                `INSERT INTO subscription (id, name, amount, frequency, billing_date, reminder) 
-                 VALUES (?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO subscription (name, amount, currency, billing_date, repeat, reminder_before, category) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
-                    id,
                     subscription.name,
                     subscription.amount,
-                    subscription.frequency,
-                    subscription.billing_date,
-                    subscription.reminder || 'No reminder',
+                    subscription.currency,
+                    subscription.billing_date instanceof Date ? subscription.billing_date.toISOString() : subscription.billing_date,
+                    subscription.repeat,
+                    subscription.reminder_before || 0, // Default to 0 if not provided
+                    subscription.category || 'General', // Default to 'General' if not provided
                 ]
             );
 
@@ -59,27 +53,27 @@ class SubscriptionService {
         }
     }
 
-    public async getSubscriptionById(id: string): Promise<Subscription | null> {
+    public async getSubscriptionByName(name: string): Promise<Subscription | null> {
         try {
             const subscription = await db.getFirstAsync<Subscription>(
-                'SELECT * FROM subscription WHERE id = ?',
-                [id]
+                'SELECT * FROM subscription WHERE name = ?',
+                [name]
             );
             return subscription;
         } catch (error) {
-            console.error(`Error fetching subscription with id ${id}:`, error);
+            console.error(`Error fetching subscription with name ${name}:`, error);
             throw error;
         }
     }
 
     public async updateSubscription(
-        id: string,
-        subscription: Partial<Omit<Subscription, 'id'>>
+        name: string,
+        subscription: Subscription
     ): Promise<boolean> {
         try {
-            const existingSubscription = await this.getSubscriptionById(id);
+            const existingSubscription = await this.getSubscriptionByName(name);
             if (!existingSubscription) {
-                throw new Error(`Subscription with id ${id} not found`);
+                throw new Error(`Subscription with name ${name} not found`);
             }
 
             const updatedSubscription = {
@@ -98,29 +92,30 @@ class SubscriptionService {
                 [
                     updatedSubscription.name,
                     updatedSubscription.amount,
-                    updatedSubscription.frequency,
-                    updatedSubscription.billing_date,
-                    updatedSubscription.reminder || 'No reminder',
-                    id,
+                    updatedSubscription.repeat,
+                    updatedSubscription.billing_date instanceof Date ? updatedSubscription.billing_date.toISOString() : updatedSubscription.billing_date,
+                    updatedSubscription.reminder_before || 0, // Default to 0 if not provided
+                    updatedSubscription.category || 'General', // Default to 'General' if not provided
+                    updatedSubscription.currency,
                 ]
             );
 
             return true;
         } catch (error) {
-            console.error(`Error updating subscription with id ${id}:`, error);
+            console.error(`Error updating subscription with name ${name}:`, error);
             throw error;
         }
     }
 
-    public async deleteSubscription(id: string): Promise<boolean> {
+    public async deleteSubscription(name: string): Promise<boolean> {
         try {
             await db.runAsync(
-                'DELETE FROM subscription WHERE id = ?',
-                [id]
+                'DELETE FROM subscription WHERE name = ?',
+                [name]
             );
             return true;
         } catch (error) {
-            console.error(`Error deleting subscription with id ${id}:`, error);
+            console.error(`Error deleting subscription with name ${name}:`, error);
             throw error;
         }
     }

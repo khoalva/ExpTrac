@@ -12,52 +12,46 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { subscriptionService } from '@/service/Subcription';
 import { db } from '@/service/database';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { Subscription } from '@/types';
 // Mock subscription data
-const subscriptions = [
-  {
-    id: '1',
-    name: 'Netflix',
-    amount: 200000,
-    frequency: 'month',
-    billing_date: new Date('2025-04-20'),
-    reminder: '3 days before',
-  },
-  {
-    id: '2',
-    name: 'Electricity',
-    amount: 100000,
-    frequency: 'month',
-    billing_date: new Date('2025-04-12'),
-    reminder: '2 days before',
-  },
-  {
-    id: '3',
-    name: 'ChatGPT Premium',
-    amount: 600000,
-    frequency: 'month',
-    billing_date: new Date('2025-04-12'),
-    reminder: 'No reminder',
-  },
-];
+// const subscriptions = [
+//   {
+//     id: '1',
+//     name: 'Netflix',
+//     amount: 200000,
+//     frequency: 'month',
+//     billing_date: new Date('2025-04-20'),
+//     reminder: '3 days before',
+//   },
+//   {
+//     id: '2',
+//     name: 'Electricity',
+//     amount: 100000,
+//     frequency: 'month',
+//     billing_date: new Date('2025-04-12'),
+//     reminder: '2 days before',
+//   },
+//   {
+//     id: '3',
+//     name: 'ChatGPT Premium',
+//     amount: 600000,
+//     frequency: 'month',
+//     billing_date: new Date('2025-04-12'),
+//     reminder: 'No reminder',
+//   },
+// ];
 
 interface SubscriptionCardProps {
-    subscription: {
-        id: string;
-        name: string;
-        amount: number;
-        frequency: string;
-        billing_date: Date;
-        reminder: string;
-    };
-    onDetail: (id: string) => void;
+    subscription: Subscription;
+    onDetail: (name: string) => void;
     onEdit: (subscription: SubscriptionCardProps['subscription']) => void;
-    onDelete: (id: string) => void;
+    onDelete: (name: string) => void;
 }
 
 const SubscriptionCard = ({ subscription, onDetail, onEdit, onDelete }: SubscriptionCardProps) => {
-    const { id, name, amount, frequency, billing_date, reminder } = subscription;
+    const { name, amount, currency, billing_date, repeat, reminder_before, category } = subscription;
 
-    const formattedAmount = formatCurrency(amount) + ` /${frequency}`;
+    const formattedAmount = formatCurrency(amount) + ` /${repeat}`;
     const formattedDate = formatDate(billing_date);
 
     return (
@@ -79,7 +73,7 @@ const SubscriptionCard = ({ subscription, onDetail, onEdit, onDelete }: Subscrip
 
                         <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => onDetail(id)}
+                            onPress={() => onDetail(name)}
                         >
                             <FileText size={16} color="white" />
                             <Text style={styles.actionText}>Detail</Text>
@@ -101,11 +95,11 @@ const SubscriptionCard = ({ subscription, onDetail, onEdit, onDelete }: Subscrip
 
                     <View style={styles.cardRow}>
                         <Text style={styles.cardLabel}>Reminder:</Text>
-                        <Text style={styles.cardValue}>{reminder}</Text>
+                        <Text style={styles.cardValue}>{reminder_before}</Text>
 
                         <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => onDelete(id)}
+                            onPress={() => onDelete(name)}
                         >
                             <Trash2 size={16} color="#FF8A8A" />
                             <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
@@ -121,7 +115,7 @@ export default function SubscriptionScreen() {
     const router = useRouter();
     const user = useUserStore(state => state.user);
     const [searchQuery, setSearchQuery] = useState('');
-    const [subscriptions, setSubscriptions] = useState([]);
+    const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalVisible, setModalVisible] = useState(false);
     const [editingSubscription, setEditingSubscription] = useState(null);
