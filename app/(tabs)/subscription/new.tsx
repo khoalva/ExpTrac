@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import SuccessModal from '@/components/modals/SuccessModal';
 import { ChevronDown, ChevronRight, ArrowLeft } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useCategoryStore } from '@/stores/categoryStore';
+import { Category } from '@/types';
+
 
 export default function NewSubscriptionScreen() {
   const router = useRouter();
@@ -21,11 +24,23 @@ export default function NewSubscriptionScreen() {
   const [billingDate, setBillingDate] = useState('');
   const [repeat, setRepeat] = useState('');
   const [reminder, setReminder] = useState('');
-  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showRepeatPicker, setShowRepeatPicker] = useState(false);
-  
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  // Fetch categories on component mount
+  useEffect(() => {
+    const initialize = async () => {
+      await useCategoryStore.getState().loadCategories();
+      const loadedCategories = useCategoryStore.getState().categories;
+      setCategories(loadedCategories);
+    };
+    initialize();
+  }, []);
+
+
   // Add these new states for date picker
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState(new Date());
@@ -90,6 +105,11 @@ export default function NewSubscriptionScreen() {
     router.back();
   };
   
+// Fix the category selection handler:
+const handleCategorySelect = (selectedCategory) => {
+  setSelectedCategory(selectedCategory.name);
+  setShowCategoryPicker(false);
+};
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -225,18 +245,23 @@ export default function NewSubscriptionScreen() {
           </View>
         </View>
         
-        <View style={styles.formRow}>``
-          <View style={styles.labelColumn}>
-            <Text style={styles.label}>Category</Text>
-          </View>
-          
-          <View style={styles.inputColumn}>
-            <TouchableOpacity style={styles.selectButton}>
-              <Text style={styles.selectButtonText}>Category</Text>
-              <ChevronRight size={20} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+      <View style={styles.formRow}>
+        <View style={styles.labelColumn}>
+          <Text style={styles.label}>Category</Text>
         </View>
+        
+        <View style={styles.inputColumn}>
+          <TouchableOpacity 
+            style={styles.selectButton}
+            onPress={() => setShowCategoryPicker(true)}
+          >
+            <Text style={selectedCategory ? styles.selectButtonTextSelected : styles.selectButtonText}>
+              {selectedCategory || "Category"}
+            </Text>
+            <ChevronRight size={20} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      </View>
         
         <Button
           title="Add Subscription"
@@ -325,6 +350,45 @@ export default function NewSubscriptionScreen() {
                 </TouchableOpacity>
               )}
             />
+          </View>
+        </View>
+      </Modal>
+      {/* Category Selection Modal */}
+      <Modal
+        visible={showCategoryPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+            data={categories}
+            keyExtractor={(item) => item.name}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.optionItem,
+                  selectedCategory === item.name && styles.selectedOptionItem
+                ]}
+                onPress={() => handleCategorySelect(item)}
+              >
+                <Text style={[
+                  styles.optionText, 
+                  selectedCategory === item.name && styles.selectedOptionText
+                ]}>
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
           </View>
         </View>
       </Modal>
