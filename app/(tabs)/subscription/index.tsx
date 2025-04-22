@@ -7,209 +7,98 @@ import { useRouter } from 'expo-router';
 import { colors } from '@/constants/Colors';
 import { useUserStore } from '@/stores/userStore';
 import Avatar from '@/components/ui/Avartar';
-import { Bell, Settings, Search, X, Plus, FileText, Edit, Trash2 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { subscriptionService } from '@/service/Subcription';
-import { db } from '@/service/database';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { Bell, Settings, Search, X, Plus } from 'lucide-react-native';
+import subScriptionStore from '@/stores/subscriptionStore';
 import { Subscription } from '@/types';
-// Mock subscription data
-// const subscriptions = [
-//   {
-//     id: '1',
-//     name: 'Netflix',
-//     amount: 200000,
-//     frequency: 'month',
-//     billing_date: new Date('2025-04-20'),
-//     reminder: '3 days before',
-//   },
-//   {
-//     id: '2',
-//     name: 'Electricity',
-//     amount: 100000,
-//     frequency: 'month',
-//     billing_date: new Date('2025-04-12'),
-//     reminder: '2 days before',
-//   },
-//   {
-//     id: '3',
-//     name: 'ChatGPT Premium',
-//     amount: 600000,
-//     frequency: 'month',
-//     billing_date: new Date('2025-04-12'),
-//     reminder: 'No reminder',
-//   },
-// ];
+import SubscriptionCard from '@/components/cards/SubscriptionCard';
 
-interface SubscriptionCardProps {
-    subscription: Subscription;
-    onDetail: (name: string) => void;
-    onEdit: (subscription: SubscriptionCardProps['subscription']) => void;
-    onDelete: (name: string) => void;
-}
-
-const SubscriptionCard = ({ subscription, onDetail, onEdit, onDelete }: SubscriptionCardProps) => {
-    const { name, amount, currency, billing_date, repeat, reminder_before, category } = subscription;
-
-    const formattedAmount = formatCurrency(amount) + ` /${repeat}`;
-    const formattedDate = formatDate(billing_date);
-
-    return (
-        <View style={styles.cardContainer}>
-            <LinearGradient
-                colors={[colors.primaryDark, '#8A6BA6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.cardGradient}
-            >
-                <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{name}</Text>
-                </View>
-
-                <View style={styles.cardContent}>
-                    <View style={styles.cardRow}>
-                        <Text style={styles.cardLabel}>Amount:</Text>
-                        <Text style={styles.cardValue}>{formattedAmount}</Text>
-
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => onDetail(name)}
-                        >
-                            <FileText size={16} color="white" />
-                            <Text style={styles.actionText}>Detail</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.cardRow}>
-                        <Text style={styles.cardLabel}>Next bill:</Text>
-                        <Text style={styles.cardValue}>{formattedDate}</Text>
-
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => onEdit(subscription)}
-                        >
-                            <Edit size={16} color="white" />
-                            <Text style={styles.actionText}>Edit</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.cardRow}>
-                        <Text style={styles.cardLabel}>Reminder:</Text>
-                        <Text style={styles.cardValue}>{reminder_before}</Text>
-
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => onDelete(name)}
-                        >
-                            <Trash2 size={16} color="#FF8A8A" />
-                            <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </LinearGradient>
-        </View>
-    );
-};
 
 export default function SubscriptionScreen() {
-    const router = useRouter();
+  const router = useRouter();
     const user = useUserStore(state => state.user);
     const [searchQuery, setSearchQuery] = useState('');
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalVisible, setModalVisible] = useState(false);
-    const [editingSubscription, setEditingSubscription] = useState(null);
+    const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
 
-    // Initialize database and load subscriptions
+    // Initialize and load subscriptions
     useEffect(() => {
         const initialize = async () => {
-            try {
-                await db.initDatabase();
-                await loadSubscriptions();
-            } catch (error) {
-                console.error('Error initializing database:', error);
-            } finally {
-                setIsLoading(false);
-            }
+            // Let subScriptionStore handle database initialization internally
+            const data = await subScriptionStore.fetchAllSubscriptions();
+            
+            setSubscriptions(data);
+            setIsLoading(false);
         };
         initialize();
     }, []);
 
-    // Load subscriptions
+    // Load subscriptions - simplified
     const loadSubscriptions = async () => {
-        try {
-            const data = await subscriptionService.getAllSubscriptions();
-            setSubscriptions(data);
-        } catch (error) {
-            console.error('Error loading subscriptions:', error);
-        }
+        
+        const data = await subScriptionStore.fetchAllSubscriptions();
+        
+        setSubscriptions(data);
     };
 
-    // Handle search
+    // Handle search - simplified
     const handleSearch = async (query: string) => {
         setSearchQuery(query);
         setIsLoading(true);
-        try {
-            const data = query
-                ? await subscriptionService.searchSubscriptionsByName(query)
-                : await subscriptionService.getAllSubscriptions();
-            setSubscriptions(data);
-        } catch (error) {
-            console.error('Error searching subscriptions:', error);
-        } finally {
-            setIsLoading(false);
-        }
+        
+        const data = query
+            ? await subScriptionStore.searchSubscriptions(query)
+            : await subScriptionStore.fetchAllSubscriptions();
+        
+        setSubscriptions(data);
+        setIsLoading(false);
     };
 
-    // Handle add subscription
+    // Handle add subscription - simplified
     const handleAddSubscription = async (formData) => {
-        try {
-            await subscriptionService.createSubscription({
-                name: formData.name,
-                amount: parseInt(formData.amount),
-                frequency: formData.frequency,
-                billing_date: formData.billing_date,
-                reminder: formData.reminder,
-            });
-            await loadSubscriptions();
-            setModalVisible(false);
-        } catch (error) {
-            console.error('Error adding subscription:', error);
-        }
+        await subScriptionStore.createSubscription({
+          name: formData.name,
+          amount: parseInt(formData.amount),
+          currency: formData.currency,
+          billing_date: formData.billing_date,
+          reminder_before: formData.reminder,
+          category: formData.category,
+          repeat: formData.repeat,
+        });
+        
+        await loadSubscriptions();
+        setModalVisible(false);
     };
 
     // Handle edit subscription
-    const handleEditSubscription = (subscription) => {
+    const handleEditSubscription = (subscription : Subscription) => {
         setEditingSubscription(subscription);
         setModalVisible(true);
     };
 
-    // Handle update subscription
+    // Handle update subscription - simplified
     const handleUpdateSubscription = async (formData) => {
-        try {
-            await subscriptionService.updateSubscription(editingSubscription.id, {
-                name: formData.name,
-                amount: parseInt(formData.amount),
-                frequency: formData.frequency,
-                billing_date: formData.billing_date,
-                reminder: formData.reminder,
-            });
-            await loadSubscriptions();
-            setModalVisible(false);
-            setEditingSubscription(null);
-        } catch (error) {
-            console.error('Error updating subscription:', error);
-        }
+        if (!editingSubscription) return;
+        await subScriptionStore.updateSubscription(editingSubscription.name, {
+            name: formData.name,
+            amount: parseInt(formData.amount),
+            currency: formData.currency,
+            billing_date: formData.billing_date,
+            reminder_before: formData.reminder,
+            category: formData.category,
+            repeat: formData.repeat,
+        });
+        
+        await loadSubscriptions();
+        setModalVisible(false);
+        setEditingSubscription(null);
     };
 
-    // Handle delete subscription
+    // Handle delete subscription - simplified
     const handleDeleteSubscription = async (id: string) => {
-        try {
-            await subscriptionService.deleteSubscription(id);
-            await loadSubscriptions();
-        } catch (error) {
-            console.error('Error deleting subscription:', error);
-        }
+        await subScriptionStore.deleteSubscription(id);
+        await loadSubscriptions();
     };
   
   return (
@@ -276,7 +165,7 @@ export default function SubscriptionScreen() {
         <View style={styles.subscriptionsList}>
           {subscriptions.map((subscription) => (
             <SubscriptionCard 
-              key={subscription.id} 
+              key={subscription.name} 
               subscription={subscription}
               onDetail={(id) => router.push(`./subscription/${id}`)}
               onEdit={handleEditSubscription}

@@ -92,11 +92,3 @@ CREATE TABLE user_profile ( -- Renamed from 'user' as it's often an SQL keyword
 -- Add a unique constraint on name if usernames should be unique
 CREATE UNIQUE INDEX idx_user_name ON user_profile(name);
 
-
-INSERT INTO category (name) VALUES
-    ('Entertainment'),
-    ('Utilities'),
-    ('Fitness'),
-    ('Education'),
-    ('Software');
-

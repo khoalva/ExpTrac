@@ -81,7 +81,6 @@ export type ChartData = {
 export type TransactionType = "income" | "expense";
 
 export type Subscription = {
-    id: string;
     name: string;
     amount: number;
     currency: string;
