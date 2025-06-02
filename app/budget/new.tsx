@@ -56,6 +56,7 @@ export default function NewBudgetScreen() {
         };
 
         // Add budget
+        // @ts-ignore
         addBudget(budget);
 
         // Show success modal

@@ -5,6 +5,14 @@ export type User = {
     avatar?: string;
 };
 
+export type UserWithPassword = User & {
+    password: string;
+};
+
+export type UserWithToken = User & {
+    token: string;
+};
+
 export type Wallet = {
     id: string;
     name: string;
@@ -89,4 +97,3 @@ export type Subscription = {
     reminder_before?: number; // in days
     category?: string; // optional
 };
-

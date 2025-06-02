@@ -22,6 +22,7 @@ import { useTransactionStore } from "@/stores/transactionStore";
 import { Eye, EyeOff, User, Lock } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { db } from "@/service/database";
+import { login } from "@/service/online/AuthService";
 
 const testDatabaseSetup = async () => {
     try {

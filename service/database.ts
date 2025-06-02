@@ -173,7 +173,7 @@ class DatabaseService {
     // Get a single result
     public async getFirstAsync<T>(
         query: string,
-        params?: (string | number | boolean | null)[]
+        params: (string | number | boolean | null)[]
     ): Promise<T | null> {
         if (!this.db) {
             throw new Error("Database not initialized");
@@ -191,7 +191,7 @@ class DatabaseService {
     // Run a non-query command
     public async runAsync(
         query: string,
-        params?: (string | number | boolean | null)[]
+        params: (string | number | boolean | null)[]
     ): Promise<void> {
         if (!this.db) {
             throw new Error("Database not initialized");
@@ -212,10 +212,81 @@ class DatabaseService {
         }
 
         try {
-            const result = await this.db.execAsync(queries);
+            const result = (await this.db.execAsync(queries.join(";"))) as any;
             return result;
         } catch (error) {
             console.error("Error executing multiple queries:", error);
+            throw error;
+        }
+    }
+
+    // Clear the database after logout
+    public async clearDatabase(): Promise<void> {
+        if (!this.db) {
+            throw new Error("Database not initialized");
+        }
+
+        try {
+            console.log("Starting database cleanup...");
+
+            // Delete data in the correct order to respect foreign key constraints
+            // 1. First delete records that have RESTRICT foreign keys
+            await this.db.runAsync("DELETE FROM transaction_log", []);
+            console.log("Cleared transaction_log table");
+
+            await this.db.runAsync("DELETE FROM subscription", []);
+            console.log("Cleared subscription table");
+
+            // 2. Then delete records that reference other tables with CASCADE/SET NULL
+            await this.db.runAsync("DELETE FROM budget", []);
+            console.log("Cleared budget table");
+
+            await this.db.runAsync("DELETE FROM wallet", []);
+            console.log("Cleared wallet table");
+
+            // 3. Delete categories (no longer referenced)
+            await this.db.runAsync("DELETE FROM category", []);
+            console.log("Cleared category table");
+
+            // 4. Delete user profile (independent table)
+            await this.db.runAsync("DELETE FROM user_profile", []);
+            console.log("Cleared user_profile table");
+
+            console.log("Database cleanup completed successfully");
+        } catch (error) {
+            console.error("Error clearing database:", error);
+            throw error;
+        }
+    }
+
+    // Alternative method: Clear database by disabling foreign keys temporarily
+    public async clearDatabaseFast(): Promise<void> {
+        if (!this.db) {
+            throw new Error("Database not initialized");
+        }
+
+        try {
+            console.log("Starting fast database cleanup...");
+
+            await this.db.withTransactionAsync(async () => {
+                // Disable foreign key constraints temporarily
+                await this.db!.runAsync("PRAGMA foreign_keys = OFF", []);
+
+                // Delete all data from all tables
+                await this.db!.runAsync("DELETE FROM transaction_log", []);
+                await this.db!.runAsync("DELETE FROM subscription", []);
+                await this.db!.runAsync("DELETE FROM budget", []);
+                await this.db!.runAsync("DELETE FROM wallet", []);
+                await this.db!.runAsync("DELETE FROM category", []);
+                await this.db!.runAsync("DELETE FROM user_profile", []);
+
+                // Re-enable foreign key constraints
+                await this.db!.runAsync("PRAGMA foreign_keys = ON", []);
+            });
+
+            console.log("Fast database cleanup completed successfully");
+        } catch (error) {
+            console.error("Error in fast database cleanup:", error);
             throw error;
         }
     }
