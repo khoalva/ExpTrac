@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 import { colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import { useUserStore } from "@/stores/userStore";
@@ -14,6 +15,8 @@ import { useCategoryStore } from "@/stores/categoryStore";
 import Avatar from "@/components/custom/Avatar";
 import { Button, ButtonText } from "@/components/ui/button/index";
 import CategoryModalForm from "@/components/modals/form/CategoryModalForm";
+import { deleteCategory as deleteCategoryOnline } from "@/service/online/CategoryService";
+
 import { db } from "@/service/database";
 
 export default function CategoryScreen() {
@@ -46,9 +49,49 @@ export default function CategoryScreen() {
 
     const handleDeleteCategory = async (categoryName: string) => {
         try {
+            // Step 1: Always perform local delete first (offline-first approach)
+            console.log(`Deleting category "${categoryName}" locally...`);
             await deleteCategory(categoryName);
-        } catch (err) {
-            console.error(`Error deleting category ${categoryName}:`, err);
+            console.log(
+                `Successfully deleted category "${categoryName}" from local database`
+            );
+
+            // Step 2: Check internet connectivity and sync with online database
+            const netInfo = await NetInfo.fetch();
+            const isConnected =
+                netInfo.isConnected && netInfo.isInternetReachable;
+
+            if (isConnected) {
+                try {
+                    console.log(
+                        `Syncing deletion of category "${categoryName}" with online database...`
+                    );
+                    await deleteCategoryOnline(categoryName);
+                    console.log(
+                        `Successfully synced deletion of category "${categoryName}" with online database`
+                    );
+                } catch (onlineError) {
+                    // Online operation failed, but local succeeded
+                    console.warn(
+                        `Failed to sync deletion with online database for category "${categoryName}":`,
+                        onlineError
+                    );
+                    // Note: You might want to queue this for retry later or show a sync indicator
+                }
+            } else {
+                console.log(
+                    "No internet connection - category deletion will sync when online"
+                );
+                // Note: You could implement a sync queue here to retry when connection is restored
+            }
+        } catch (localError) {
+            // Local operation failed - this is more serious
+            console.error(
+                `Failed to delete category "${categoryName}" from local database:`,
+                localError
+            );
+            // You might want to show an error message to the user here
+            throw localError; // Re-throw to handle in UI if needed
         }
     };
 

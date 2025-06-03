@@ -10,6 +10,7 @@ import {
 import { Button, ButtonText } from "@/components/ui/button";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { Text, TextInput, View, ActivityIndicator } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import { Card } from "@/components/custom/Card";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
@@ -19,6 +20,10 @@ import { colors } from "@/constants/Colors";
 import { CategorySchema } from "@/libs/validation";
 import { db } from "@/service/database";
 import categoryService from "@/service/CategoryService";
+import {
+    createCategory as createCategoryOnline,
+    updateCategory as updateCategoryOnline,
+} from "@/service/online/CategoryService";
 
 type CategoryFormProps = {
     isOpen: boolean;
@@ -138,19 +143,88 @@ export default function CategoryModalForm({
         console.log("Form submitted with data:", data);
         try {
             if (editCategory) {
-                // Use old name and new name for updating
-                await updateCategory(editCategory, data.name);
-            } else {
-                await addCategory(data.name);
-            }
+                // UPDATE OPERATION - Local first, then online sync
+                console.log(
+                    `Updating category "${editCategory}" to "${data.name}" locally...`
+                );
+                await updateCategory(editCategory, data.name).then(() => {
+                    reset();
+                    onClose();
+                });
+                console.log(
+                    `Successfully updated category "${editCategory}" to "${data.name}" in local database`
+                );
 
-            if (!error) {
-                // Only close and reset if no error
-                reset();
-                onClose();
+                // Check internet connectivity and sync with online database
+                const netInfo = await NetInfo.fetch();
+                const isConnected =
+                    netInfo.isConnected && netInfo.isInternetReachable;
+
+                if (isConnected) {
+                    try {
+                        console.log(
+                            `Syncing category update with online database...`
+                        );
+                        await updateCategoryOnline(editCategory, data.name);
+                        console.log(
+                            `Successfully synced category update with online database`
+                        );
+                    } catch (onlineError) {
+                        // Online operation failed, but local succeeded
+                        console.warn(
+                            `Failed to sync category update with online database:`,
+                            onlineError
+                        );
+                        // Note: You might want to queue this for retry later
+                    }
+                } else {
+                    console.log(
+                        "No internet connection - category update will sync when online"
+                    );
+                }
+            } else {
+                // CREATE OPERATION - Local first, then online sync
+                console.log(`Creating category "${data.name}" locally...`);
+                await addCategory(data.name);
+                console.log(
+                    `Successfully created category "${data.name}" in local database`
+                );
+
+                // Check internet connectivity and sync with online database
+                const netInfo = await NetInfo.fetch();
+                const isConnected =
+                    netInfo.isConnected && netInfo.isInternetReachable;
+
+                if (isConnected) {
+                    try {
+                        console.log(
+                            `Syncing category creation with online database...`
+                        );
+                        await createCategoryOnline(data.name);
+                        console.log(
+                            `Successfully synced category creation with online database`
+                        );
+                    } catch (onlineError) {
+                        // Online operation failed, but local succeeded
+                        console.warn(
+                            `Failed to sync category creation with online database:`,
+                            onlineError
+                        );
+                        // Note: You might want to queue this for retry later
+                    }
+                } else {
+                    console.log(
+                        "No internet connection - category creation will sync when online"
+                    );
+                }
             }
-        } catch (error) {
-            console.error("Failed to save category:", error);
+        } catch (localError) {
+            // Local operation failed - this is critical
+            console.error(
+                "Failed to save category to local database:",
+                localError
+            );
+            // The error will be displayed in the UI via the error state
         }
     };
 

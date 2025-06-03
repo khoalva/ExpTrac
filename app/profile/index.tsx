@@ -36,6 +36,7 @@ export default function ProfileScreen() {
     const handleLogout = () => {
         // TODO: swipe the sqlite database
         logout();
+
         router.replace("./auth/login");
     };
 

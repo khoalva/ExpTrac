@@ -67,13 +67,14 @@ export default function LoginScreen() {
     const [activeTab, setActiveTab] = useState("login");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [name, setName] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
 
     const router = useRouter();
     const login = useUserStore((state) => state.login);
+    const register = useUserStore((state) => state.register);
 
     // Store initialization methods
     const loadWallets = useWalletStore((state) => state.loadWallets);
@@ -85,21 +86,64 @@ export default function LoginScreen() {
         (state) => state.initializeSampleNotifications
     );
 
-    const handleAuth = async () => {
+    const validateLoginForm = () => {
         if (!email || !password) {
             setError("Please fill in all fields");
-            return;
+            return false;
+        }
+        return true;
+    };
+
+    const validateSignupForm = () => {
+        if (!email.trim()) {
+            setError("Please enter a username");
+            return false;
         }
 
+        if (!password) {
+            setError("Please enter a password");
+            return false;
+        }
+
+        if (password.length < 6) {
+            setError("Password must be at least 6 characters long");
+            return false;
+        }
+
+        if (password !== confirmPassword) {
+            setError("Passwords do not match");
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleAuth = async () => {
         setIsLoading(true);
         setError("");
 
         try {
-            // Test database setup first
-            // await testDatabaseSetup();
+            let success = false;
 
-            // Simulate API call
-            const success = await login(email, password);
+            if (activeTab === "login") {
+                if (!validateLoginForm()) {
+                    setIsLoading(false);
+                    return;
+                }
+                success = await login(email, password);
+                if (!success) {
+                    setError("Invalid credentials");
+                }
+            } else {
+                if (!validateSignupForm()) {
+                    setIsLoading(false);
+                    return;
+                }
+                success = await register(email, password);
+                if (!success) {
+                    setError("Registration failed. Please try again.");
+                }
+            }
 
             if (success) {
                 // Initialize database
@@ -126,8 +170,6 @@ export default function LoginScreen() {
 
                 // Navigate to home
                 router.replace("/(tabs)");
-            } else {
-                setError("Invalid credentials");
             }
         } catch (err) {
             setError("An error occurred. Please try again.");
@@ -156,7 +198,7 @@ export default function LoginScreen() {
                 <Text style={styles.headerSubtitle}>
                     {activeTab === "login"
                         ? "Create an account or log in to explore about our app"
-                        : "Sign up to start tracking your finances"}
+                        : "Sign up to start tracking your finances and take control of your money"}
                 </Text>
             </LinearGradient>
 
@@ -171,67 +213,79 @@ export default function LoginScreen() {
                     style={styles.segmentedControl}
                 />
 
-                {activeTab === "signup" && (
-                    <Input
-                        label="Name"
-                        placeholder="Your name"
-                        value={name}
-                        onChangeText={setName}
-                        leftIcon={
-                            <User size={20} color={colors.textSecondary} />
-                        }
-                        autoCapitalize="words"
-                    />
-                )}
-
                 <Input
-                    label="Email or Username"
-                    placeholder="Your email or username"
+                    label={
+                        activeTab === "login" ? "Email or Username" : "Username"
+                    }
+                    placeholder={
+                        activeTab === "login"
+                            ? "Your email or username"
+                            : "Choose a username"
+                    }
                     value={email}
                     onChangeText={setEmail}
                     leftIcon={<User size={20} color={colors.textSecondary} />}
                     autoCapitalize="none"
-                    keyboardType="email-address"
+                    keyboardType={
+                        activeTab === "login" ? "email-address" : "default"
+                    }
                 />
 
                 <Input
                     label="Password"
-                    placeholder="Your password"
+                    placeholder={
+                        activeTab === "login"
+                            ? "Your password"
+                            : "Create a password"
+                    }
                     value={password}
                     onChangeText={setPassword}
                     leftIcon={<Lock size={20} color={colors.textSecondary} />}
                     isPassword
                 />
 
-                <View style={styles.optionsRow}>
-                    <TouchableOpacity
-                        style={styles.checkboxContainer}
-                        onPress={() => setRememberMe(!rememberMe)}>
-                        <View
-                            style={[
-                                styles.checkbox,
-                                rememberMe && styles.checkboxChecked,
-                            ]}>
-                            {rememberMe && (
-                                <Text style={styles.checkmark}>✓</Text>
-                            )}
-                        </View>
-                        <Text style={styles.rememberText}>Remember me</Text>
-                    </TouchableOpacity>
+                {activeTab === "signup" && (
+                    <Input
+                        label="Confirm Password"
+                        placeholder="Retype your password"
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        leftIcon={
+                            <Lock size={20} color={colors.textSecondary} />
+                        }
+                        isPassword
+                    />
+                )}
 
-                    {activeTab === "login" && (
+                {activeTab === "login" && (
+                    <View style={styles.optionsRow}>
+                        <TouchableOpacity
+                            style={styles.checkboxContainer}
+                            onPress={() => setRememberMe(!rememberMe)}>
+                            <View
+                                style={[
+                                    styles.checkbox,
+                                    rememberMe && styles.checkboxChecked,
+                                ]}>
+                                {rememberMe && (
+                                    <Text style={styles.checkmark}>✓</Text>
+                                )}
+                            </View>
+                            <Text style={styles.rememberText}>Remember me</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity>
                             <Text style={styles.forgotText}>
                                 Forgot Password?
                             </Text>
                         </TouchableOpacity>
-                    )}
-                </View>
+                    </View>
+                )}
 
                 {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
                 <Button
-                    title={activeTab === "login" ? "Log In" : "Sign Up"}
+                    title={activeTab === "login" ? "Log In" : "Create Account"}
                     onPress={handleAuth}
                     loading={isLoading}
                     style={styles.authButton}
@@ -243,33 +297,23 @@ export default function LoginScreen() {
                     <View style={styles.dividerLine} />
                 </View>
 
-                <Button
-                    title="Continue with Google"
-                    variant="outline"
-                    style={styles.socialButton}
-                    leftIcon={
-                        <Image
-                            source={{
-                                uri: "https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg",
-                            }}
-                            style={styles.socialIcon}
-                        />
-                    }
-                />
-
-                <Button
-                    title="Continue with Facebook"
-                    variant="outline"
-                    style={styles.socialButton}
-                    leftIcon={
-                        <Image
-                            source={{
-                                uri: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Facebook_Logo_%282019%29.png/1024px-Facebook_Logo_%282019%29.png",
-                            }}
-                            style={styles.socialIcon}
-                        />
-                    }
-                />
+                <View style={styles.registerPrompt}>
+                    <Text style={styles.registerPromptText}>
+                        {activeTab === "login"
+                            ? "Don't have an account? "
+                            : "Already have an account? "}
+                    </Text>
+                    <TouchableOpacity
+                        onPress={() =>
+                            setActiveTab(
+                                activeTab === "login" ? "signup" : "login"
+                            )
+                        }>
+                        <Text style={styles.registerLink}>
+                            {activeTab === "login" ? "Sign Up" : "Sign In"}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -382,5 +426,20 @@ const styles = StyleSheet.create({
     socialIcon: {
         width: 24,
         height: 24,
+    },
+    registerPrompt: {
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: 20,
+    },
+    registerPromptText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+    },
+    registerLink: {
+        fontSize: 14,
+        color: colors.primary,
+        fontWeight: "600",
     },
 });

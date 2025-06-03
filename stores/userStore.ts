@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User } from "@/types";
 import { login, register } from "@/service/online/AuthService";
 import { getUser } from "@/service/online/UserService";
-
+import { db } from "@/service/database";
 interface UserState {
     user: User | null;
     token: string | null;
@@ -78,6 +78,8 @@ export const useUserStore = create<UserState>()(
 
             logout: () => {
                 // This would later reset the local sqlite database
+                console.log("Clearing database");
+                db.clearDatabase();
 
                 set({ user: null, token: null, isAuthenticated: false });
             },

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 import { z } from "zod";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/Colors";
@@ -36,6 +37,7 @@ import {
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
 import { currencies } from "@/constants/currencies";
 import { Wallet } from "@/types";
+import { updateWallet as updateWalletOnline } from "@/service/online/WalletService";
 
 export default function EditWalletScreen() {
     const router = useRouter();
@@ -105,12 +107,50 @@ export default function EditWalletScreen() {
                 visible_category: data.visible_category,
             };
 
-            // Update wallet through store
-            await updateWallet(id, walletData).then(() => {
-                router.push("/(tabs)/wallet");
-            });
-        } catch (err) {
-            console.error("Error updating wallet:", err);
+            // Step 1: Always perform local update first (offline-first approach)
+            console.log(`Updating wallet "${id}" locally...`);
+            await updateWallet(id, walletData);
+            console.log(
+                `Successfully updated wallet "${id}" in local database`
+            );
+
+            // Step 2: Check internet connectivity and sync with online database
+            const netInfo = await NetInfo.fetch();
+            const isConnected =
+                netInfo.isConnected && netInfo.isInternetReachable;
+
+            if (isConnected) {
+                try {
+                    console.log(
+                        `Syncing wallet update with online database...`
+                    );
+                    await updateWalletOnline(id, walletData);
+                    console.log(
+                        `Successfully synced wallet update with online database`
+                    );
+                } catch (onlineError) {
+                    // Online operation failed, but local succeeded
+                    console.warn(
+                        `Failed to sync wallet update with online database:`,
+                        onlineError
+                    );
+                    // Note: You might want to queue this for retry later
+                }
+            } else {
+                console.log(
+                    "No internet connection - wallet update will sync when online"
+                );
+            }
+
+            // Navigate back to wallet list on success
+            router.push("/(tabs)/wallet");
+        } catch (localError) {
+            // Local operation failed - this is critical
+            console.error(
+                "Error updating wallet in local database:",
+                localError
+            );
+            // The error will be displayed in the UI via the error state
         } finally {
             setFormSubmitting(false);
         }

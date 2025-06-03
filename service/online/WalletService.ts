@@ -16,10 +16,10 @@ export const getAllWallets = async (): Promise<Wallet[]> => {
     }
 };
 
-export const getWallet = async (id: string): Promise<Wallet> => {
+export const getWallet = async (name: string): Promise<Wallet> => {
     try {
         const token = useUserStore.getState().token;
-        const response = await api.get(`/wallets/${id}`, {
+        const response = await api.get(`/wallets/${name}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
@@ -35,36 +35,56 @@ export const createWallet = async (
 ): Promise<void> => {
     try {
         const token = useUserStore.getState().token;
-        const response = await api.post(`/wallets`, wallet, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+        const { name, init_amount, currency, visible_category } = wallet;
+
+        const response = await api.post(
+            `/wallets`,
+            {
+                name,
+                initAmount: init_amount,
+                currency,
+                visibleCategory: visible_category,
             },
-        });
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
     } catch (error) {
         throw error;
     }
 };
 
 export const updateWallet = async (
-    id: string,
+    name: string,
     wallet: Partial<Wallet>
 ): Promise<void> => {
     try {
         const token = useUserStore.getState().token;
-        const response = await api.put(`/wallets/${id}`, wallet, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+        const { init_amount, currency, visible_category } = wallet;
+        const response = await api.put(
+            `/wallets/${name}`,
+            {
+                initAmount: init_amount,
+                currency,
+                visibleCategory: visible_category,
             },
-        });
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
     } catch (error) {
         throw error;
     }
 };
 
-export const deleteWallet = async (id: string): Promise<void> => {
+export const deleteWallet = async (name: string): Promise<void> => {
     try {
         const token = useUserStore.getState().token;
-        const response = await api.delete(`/wallets/${id}`, {
+        const response = await api.delete(`/wallets/${name}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },

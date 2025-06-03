@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 import { z } from "zod";
 import { Stack, useRouter } from "expo-router";
 import { colors } from "@/constants/Colors";
@@ -34,7 +35,9 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icon";
+
 import { currencies } from "@/constants/currencies";
+import { createWallet as createWalletOnline } from "@/service/online/WalletService";
 
 export default function NewWalletScreen() {
     const router = useRouter();
@@ -81,17 +84,53 @@ export default function NewWalletScreen() {
                 visible_category: data.visible_category || "",
             };
 
-            // Add wallet through store (which updates database)
+            // Step 1: Always perform local create first (offline-first approach)
+            console.log(`Creating wallet "${data.name}" locally...`);
             const result = await addWallet(walletData);
+            console.log(
+                `Successfully created wallet "${data.name}" in local database`
+            );
+
+            // Step 2: Check internet connectivity and sync with online database
+            const netInfo = await NetInfo.fetch();
+            const isConnected =
+                netInfo.isConnected && netInfo.isInternetReachable;
+
+            if (isConnected) {
+                try {
+                    console.log(
+                        `Syncing wallet creation with online database...`
+                    );
+                    await createWalletOnline(walletData);
+                    console.log(
+                        `Successfully synced wallet creation with online database`
+                    );
+                } catch (onlineError) {
+                    // Online operation failed, but local succeeded
+                    console.warn(
+                        `Failed to sync wallet creation with online database:`,
+                        onlineError
+                    );
+                    // Note: You might want to queue this for retry later
+                }
+            } else {
+                console.log(
+                    "No internet connection - wallet creation will sync when online"
+                );
+            }
 
             if (result) {
                 // Navigate back to wallet list on success
-                // reset the form
                 reset();
                 router.push("/(tabs)/wallet");
             }
-        } catch (err) {
-            console.error("Error creating wallet:", err);
+        } catch (localError) {
+            // Local operation failed - this is critical
+            console.error(
+                "Error creating wallet in local database:",
+                localError
+            );
+            // The error will be displayed in the UI via the error state
         } finally {
             setFormSubmitting(false);
         }

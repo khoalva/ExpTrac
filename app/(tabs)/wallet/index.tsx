@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/button/index";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 import { Stack } from "expo-router";
 import { useWalletStore } from "@/stores/walletStore";
 import { useUserStore } from "@/stores/userStore";
@@ -25,6 +26,7 @@ import Avatar from "@/components/custom/Avatar";
 import { useRouter } from "expo-router";
 import { Pencil, Trash } from "lucide-react-native";
 import { db } from "@/service/database";
+import { deleteWallet as deleteWalletOnline } from "@/service/online/WalletService";
 
 export default function WalletScreen() {
     // Get wallet data from your store
@@ -62,10 +64,48 @@ export default function WalletScreen() {
 
     const handleDeleteWallet = async (walletId: string) => {
         try {
-            // Delete wallet through store (which updates database)
+            // Step 1: Always perform local delete first (offline-first approach)
+            console.log(`Deleting wallet "${walletId}" locally...`);
             await deleteWallet(walletId);
-        } catch (err) {
-            console.error(`Error deleting wallet ${walletId}:`, err);
+            console.log(
+                `Successfully deleted wallet "${walletId}" from local database`
+            );
+
+            // Step 2: Check internet connectivity and sync with online database
+            const netInfo = await NetInfo.fetch();
+            const isConnected =
+                netInfo.isConnected && netInfo.isInternetReachable;
+
+            if (isConnected) {
+                try {
+                    console.log(
+                        `Syncing deletion of wallet "${walletId}" with online database...`
+                    );
+                    await deleteWalletOnline(walletId);
+                    console.log(
+                        `Successfully synced deletion of wallet "${walletId}" with online database`
+                    );
+                } catch (onlineError) {
+                    // Online operation failed, but local succeeded
+                    console.warn(
+                        `Failed to sync deletion with online database for wallet "${walletId}":`,
+                        onlineError
+                    );
+                    // Note: You might want to queue this for retry later
+                }
+            } else {
+                console.log(
+                    "No internet connection - wallet deletion will sync when online"
+                );
+            }
+        } catch (localError) {
+            // Local operation failed - this is critical
+            console.error(
+                `Failed to delete wallet "${walletId}" from local database:`,
+                localError
+            );
+            // You might want to show an error message to the user here
+            throw localError; // Re-throw to handle in UI if needed
         }
     };
 

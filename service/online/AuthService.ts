@@ -8,8 +8,8 @@ export const login = async (
     password: string
 ): Promise<UserWithToken> => {
     try {
-        const response = await api.post("/auth/login", {
-            username,
+        const response = await api.post("/auth/sign-in", {
+            name: username,
             password,
         });
 
@@ -25,9 +25,10 @@ export const register = async (
     password: string
 ): Promise<UserWithToken> => {
     try {
-        const response = await api.post("/auth/register", {
-            username,
+        const response = await api.post("/auth/sign-up", {
+            name: username,
             password,
+            avatar: "",
         });
 
         const { user, token } = response.data;

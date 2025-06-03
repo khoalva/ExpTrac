@@ -73,9 +73,9 @@ export const useWalletStore = create<WalletState>()(
                     });
 
                     // If no wallets exist, create default wallet
-                    if (wallets.length === 0) {
-                        await get().initializeDefaultWallet();
-                    }
+                    // if (wallets.length === 0) {
+                    //     await get().initializeDefaultWallet();
+                    // }
                 } catch (error) {
                     console.error("Error loading wallets:", error);
                     set({

@@ -50,9 +50,9 @@ export const useCategoryStore = create<CategoryState>()(
                     set({ categories, isLoading: false });
 
                     // If no categories exist, create defaults
-                    if (categories.length === 0) {
-                        await get().initializeDefaultCategory();
-                    }
+                    // if (categories.length === 0) {
+                    //     await get().initializeDefaultCategory();
+                    // }
                 } catch (error) {
                     console.error("Error loading categories:", error);
                     set({
