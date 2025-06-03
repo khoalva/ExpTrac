@@ -1,6 +1,7 @@
 import api from "@/api";
 import { useUserStore } from "@/stores/userStore";
 import { Category } from "@/types";
+import * as Sentry from "@sentry/react-native";
 
 export const getAllCategories = async (): Promise<Category[]> => {
     try {
@@ -12,6 +13,12 @@ export const getAllCategories = async (): Promise<Category[]> => {
         });
         return response.data;
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "CategoryService",
+                operation: "getAllCategories",
+            },
+        });
         throw error;
     }
 };
@@ -26,6 +33,15 @@ export const getCategory = async (name: string): Promise<Category> => {
         });
         return response.data;
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "CategoryService",
+                operation: "getCategory",
+            },
+            extra: {
+                categoryName: name,
+            },
+        });
         throw error;
     }
 };
@@ -43,6 +59,15 @@ export const createCategory = async (name: string): Promise<void> => {
             }
         );
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "CategoryService",
+                operation: "createCategory",
+            },
+            extra: {
+                categoryName: name,
+            },
+        });
         throw error;
     }
 };
@@ -63,6 +88,16 @@ export const updateCategory = async (
             }
         );
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "CategoryService",
+                operation: "updateCategory",
+            },
+            extra: {
+                oldName,
+                newName,
+            },
+        });
         throw error;
     }
 };
@@ -76,6 +111,15 @@ export const deleteCategory = async (name: string): Promise<void> => {
             },
         });
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "CategoryService",
+                operation: "deleteCategory",
+            },
+            extra: {
+                categoryName: name,
+            },
+        });
         throw error;
     }
 };

@@ -1,4 +1,5 @@
 import { db } from "./database";
+import * as Sentry from "@sentry/react-native";
 
 interface Category {
     name: string;
@@ -52,6 +53,15 @@ class CategoryService {
             }
         } catch (error) {
             console.error(`Error creating category ${name}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "CategoryService",
+                    operation: "createCategory",
+                },
+                extra: {
+                    categoryName: name,
+                },
+            });
             throw error;
         }
     }
@@ -64,6 +74,12 @@ class CategoryService {
             return results;
         } catch (error) {
             console.error("Error fetching categories:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "CategoryService",
+                    operation: "getAllCategories",
+                },
+            });
             throw error;
         }
     }
@@ -87,6 +103,16 @@ class CategoryService {
             return true;
         } catch (error) {
             console.error(`Error updating category ${oldName}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "CategoryService",
+                    operation: "updateCategory",
+                },
+                extra: {
+                    oldName,
+                    newName,
+                },
+            });
             throw error;
         }
     }
@@ -113,6 +139,15 @@ class CategoryService {
             return true;
         } catch (error) {
             console.error(`Error deleting category ${name}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "CategoryService",
+                    operation: "deleteCategory",
+                },
+                extra: {
+                    categoryName: name,
+                },
+            });
             throw error;
         }
     }
@@ -128,6 +163,15 @@ class CategoryService {
             return results.length > 0 ? results[0] : null;
         } catch (error) {
             console.error(`Error fetching category ${name}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "CategoryService",
+                    operation: "getCategoryByName",
+                },
+                extra: {
+                    categoryName: name,
+                },
+            });
             throw error;
         }
     }

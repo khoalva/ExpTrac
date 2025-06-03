@@ -1,6 +1,7 @@
 import api from "@/api";
 import { useUserStore } from "@/stores/userStore";
 import { Transaction } from "@/types";
+import * as Sentry from "@sentry/react-native";
 
 export const getAllTransactions = async (): Promise<Transaction[]> => {
     try {
@@ -12,6 +13,12 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         });
         return response.data;
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "TransactionService",
+                operation: "getAllTransactions",
+            },
+        });
         throw error;
     }
 };
@@ -26,6 +33,15 @@ export const getTransaction = async (id: string): Promise<Transaction> => {
         });
         return response.data;
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "TransactionService",
+                operation: "getTransaction",
+            },
+            extra: {
+                transactionId: id,
+            },
+        });
         throw error;
     }
 };
@@ -41,6 +57,18 @@ export const createTransaction = async (
             },
         });
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "TransactionService",
+                operation: "createTransaction",
+            },
+            extra: {
+                transactionType: transaction.type,
+                amount: transaction.amount,
+                currency: transaction.currency,
+                category: transaction.category,
+            },
+        });
         throw error;
     }
 };
@@ -57,6 +85,17 @@ export const updateTransaction = async (
             },
         });
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "TransactionService",
+                operation: "updateTransaction",
+            },
+            extra: {
+                transactionId: id,
+                transactionType: transaction.type,
+                amount: transaction.amount,
+            },
+        });
         throw error;
     }
 };
@@ -70,6 +109,15 @@ export const deleteTransaction = async (id: string): Promise<void> => {
             },
         });
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: {
+                service: "TransactionService",
+                operation: "deleteTransaction",
+            },
+            extra: {
+                transactionId: id,
+            },
+        });
         throw error;
     }
 };

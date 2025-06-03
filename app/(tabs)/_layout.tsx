@@ -113,6 +113,13 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="subscription/[id]/index"
+                options={{
+                    headerShown: false,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="subscription/new"
                 options={{
                     headerShown: false,

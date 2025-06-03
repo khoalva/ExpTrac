@@ -1,6 +1,7 @@
 import { db } from "./database";
+import * as Sentry from "@sentry/react-native";
 
-interface Transaction {
+export interface Transaction {
     id?: number;
     type: "expense" | "income";
     amount: number;
@@ -52,6 +53,19 @@ class TransactionService {
             return result[0]?.last_insert_rowid || 0;
         } catch (error) {
             console.error("Error creating transaction:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "createTransaction",
+                },
+                extra: {
+                    transactionType: transaction.type,
+                    amount: transaction.amount,
+                    currency: transaction.currency,
+                    wallet: transaction.wallet,
+                    category: transaction.category,
+                },
+            });
             throw error;
         }
     }
@@ -67,6 +81,12 @@ class TransactionService {
             return res;
         } catch (error) {
             console.error("Error fetching transactions:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "getAllTransactions",
+                },
+            });
             throw error;
         }
     }
@@ -81,6 +101,15 @@ class TransactionService {
             return results.length > 0 ? results[0] : null;
         } catch (error) {
             console.error(`Error fetching transaction with id ${id}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "getTransactionById",
+                },
+                extra: {
+                    transactionId: id,
+                },
+            });
             throw error;
         }
     }
@@ -132,6 +161,19 @@ class TransactionService {
             return true;
         } catch (error) {
             console.error(`Error updating transaction with id ${id}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "updateTransaction",
+                },
+                extra: {
+                    transactionId: id,
+                    transactionType: transaction.type,
+                    amount: transaction.amount,
+                    wallet: transaction.wallet,
+                    category: transaction.category,
+                },
+            });
             throw error;
         }
     }
@@ -145,6 +187,15 @@ class TransactionService {
             return true;
         } catch (error) {
             console.error(`Error deleting transaction with id ${id}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "deleteTransaction",
+                },
+                extra: {
+                    transactionId: id,
+                },
+            });
             throw error;
         }
     }
@@ -162,6 +213,15 @@ class TransactionService {
                 `Error fetching transactions for category ${category}:`,
                 error
             );
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "getTransactionsByCategory",
+                },
+                extra: {
+                    category,
+                },
+            });
             throw error;
         }
     }
@@ -179,6 +239,15 @@ class TransactionService {
                 `Error fetching transactions for wallet ${wallet}:`,
                 error
             );
+            Sentry.captureException(error, {
+                tags: {
+                    service: "TransactionService",
+                    operation: "getTransactionsByWallet",
+                },
+                extra: {
+                    wallet,
+                },
+            });
             throw error;
         }
     }

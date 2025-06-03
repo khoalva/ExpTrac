@@ -1,6 +1,7 @@
 import { openDatabaseSync, SQLiteDatabase } from "expo-sqlite";
 import * as FileSystem from "expo-file-system";
 import { Asset } from "expo-asset";
+import * as Sentry from "@sentry/react-native";
 
 class DatabaseService {
     private db: SQLiteDatabase | null = null;
@@ -74,6 +75,12 @@ class DatabaseService {
             }
         } catch (error) {
             console.error("Error initializing database:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "initDatabase",
+                },
+            });
             throw error;
         }
     }
@@ -89,6 +96,12 @@ class DatabaseService {
             console.log("Database connection test successful:", result);
         } catch (error) {
             console.error("Database test query failed:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "testDatabaseConnection",
+                },
+            });
             throw error;
         }
     }
@@ -112,6 +125,15 @@ class DatabaseService {
             return result;
         } catch (error) {
             console.error("Error executing query:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "executeQuery",
+                },
+                extra: {
+                    query,
+                },
+            });
             throw error;
         }
     }
@@ -129,6 +151,16 @@ class DatabaseService {
             return result;
         } catch (error) {
             console.error("Error executing parameterized query:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "executeParameterizedQuery",
+                },
+                extra: {
+                    query,
+                    params: JSON.stringify(params),
+                },
+            });
             throw error;
         }
     }
@@ -148,6 +180,16 @@ class DatabaseService {
             });
         } catch (error) {
             console.error("Transaction error:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "executeTransaction",
+                },
+                extra: {
+                    queryCount: queries.length,
+                    queries: JSON.stringify(queries.map((q) => q.sql)),
+                },
+            });
             throw error;
         }
     }
@@ -166,6 +208,15 @@ class DatabaseService {
                 `Error checking if table ${tableName} exists:`,
                 error
             );
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "tableExists",
+                },
+                extra: {
+                    tableName,
+                },
+            });
             return false;
         }
     }
@@ -184,6 +235,16 @@ class DatabaseService {
             return result;
         } catch (error) {
             console.error("Error executing single query:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "getFirstAsync",
+                },
+                extra: {
+                    query,
+                    params: JSON.stringify(params),
+                },
+            });
             throw error;
         }
     }
@@ -201,6 +262,16 @@ class DatabaseService {
             await this.db.runAsync(query, params);
         } catch (error) {
             console.error("Error running query:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "runAsync",
+                },
+                extra: {
+                    query,
+                    params: JSON.stringify(params),
+                },
+            });
             throw error;
         }
     }
@@ -216,6 +287,16 @@ class DatabaseService {
             return result;
         } catch (error) {
             console.error("Error executing multiple queries:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "execAsync",
+                },
+                extra: {
+                    queryCount: queries.length,
+                    queries: JSON.stringify(queries),
+                },
+            });
             throw error;
         }
     }
@@ -255,6 +336,12 @@ class DatabaseService {
             console.log("Database cleanup completed successfully");
         } catch (error) {
             console.error("Error clearing database:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "clearDatabase",
+                },
+            });
             throw error;
         }
     }
@@ -287,6 +374,12 @@ class DatabaseService {
             console.log("Fast database cleanup completed successfully");
         } catch (error) {
             console.error("Error in fast database cleanup:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "DatabaseService",
+                    operation: "clearDatabaseFast",
+                },
+            });
             throw error;
         }
     }

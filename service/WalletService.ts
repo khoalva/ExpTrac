@@ -1,5 +1,6 @@
 import { db } from "./database";
 import { Wallet } from "@/types";
+import * as Sentry from "@sentry/react-native";
 
 class WalletService {
     private static instance: WalletService;
@@ -29,6 +30,17 @@ class WalletService {
             return true;
         } catch (error) {
             console.error("Error creating wallet:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "createWallet",
+                },
+                extra: {
+                    walletName: wallet.name,
+                    initAmount: wallet.init_amount,
+                    currency: wallet.currency,
+                },
+            });
             throw error;
         }
     }
@@ -41,6 +53,12 @@ class WalletService {
             return results;
         } catch (error) {
             console.error("Error fetching wallets:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "getAllWallets",
+                },
+            });
             throw error;
         }
     }
@@ -54,6 +72,15 @@ class WalletService {
             return results.length > 0 ? results[0] : null;
         } catch (error) {
             console.error(`Error fetching wallet ${name}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "getWalletByName",
+                },
+                extra: {
+                    walletName: name,
+                },
+            });
             throw error;
         }
     }
@@ -119,6 +146,18 @@ class WalletService {
             return true;
         } catch (error) {
             console.error(`Error updating wallet ${oldName}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "updateWallet",
+                },
+                extra: {
+                    oldWalletName: oldName,
+                    newWalletName: wallet.name,
+                    initAmount: wallet.init_amount,
+                    currency: wallet.currency,
+                },
+            });
             throw error;
         }
     }
@@ -146,6 +185,15 @@ class WalletService {
             return true;
         } catch (error) {
             console.error(`Error deleting wallet ${name}:`, error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "deleteWallet",
+                },
+                extra: {
+                    walletName: name,
+                },
+            });
             throw error;
         }
     }
@@ -189,6 +237,15 @@ class WalletService {
                 `Error calculating balance for wallet ${name}:`,
                 error
             );
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "getWalletBalance",
+                },
+                extra: {
+                    walletName: name,
+                },
+            });
             throw error;
         }
     }
@@ -209,6 +266,12 @@ class WalletService {
             return totalBalance;
         } catch (error) {
             console.error("Error calculating total balance:", error);
+            Sentry.captureException(error, {
+                tags: {
+                    service: "WalletService",
+                    operation: "getTotalBalance",
+                },
+            });
             throw error;
         }
     }

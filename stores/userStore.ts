@@ -77,10 +77,6 @@ export const useUserStore = create<UserState>()(
             },
 
             logout: () => {
-                // This would later reset the local sqlite database
-                console.log("Clearing database");
-                db.clearDatabase();
-
                 set({ user: null, token: null, isAuthenticated: false });
             },
 
